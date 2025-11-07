@@ -1,0 +1,94 @@
+# -------------------------------------------------------------
+# GitHub Actions Workflow: C++ Tests, Static Analysis, and Coverage
+# -------------------------------------------------------------
+# Purpose:
+# Runs cppcheck (static analysis), builds your C++ project,
+# runs unit tests, and generates a coverage report.
+# -------------------------------------------------------------
+
+name: C++ Tests and Coverage
+
+# -------------------------------------------------------------
+# Triggers:
+# Run this workflow automatically whenever code is pushed
+# or a pull request is opened against the master branch.
+# -------------------------------------------------------------
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build-and-test:
+    # ---------------------------------------------------------
+    # The GitHub-hosted runner type to use (the host machine).
+    # Ubuntu 24.04 provides Docker, Git, and build tools.
+    # ---------------------------------------------------------
+    runs-on: ubuntu-24.04
+
+    # ---------------------------------------------------------
+    # Run all job steps inside this Docker container.
+    # This ensures a consistent C++ build environment
+    # with specific compiler and tool versions.
+    # ---------------------------------------------------------
+    container:
+      image: urboob21/cpp-lab:latest
+
+    steps:
+      # -------------------------------------------------------
+      # Step 1: Checkout the repository source code
+      # -------------------------------------------------------
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      # -------------------------------------------------------
+      # Step 2: Run Cppcheck (Static Analysis)
+      # - Scans for common C++ issues (style, memory, logic)
+      # - You can adjust `--enable=` options as needed
+      # -------------------------------------------------------
+      - name: Run static analysis with Cppcheck
+        run: |
+          echo "Running Cppcheck..."
+          cppcheck --enable=warning,style,performance,portability \
+                   --inconclusive \
+                   --quiet \
+                   --error-exitcode=1 \
+                   ./src ./include
+
+      # -------------------------------------------------------
+      # Step 3: Configure and build the project
+      # -------------------------------------------------------
+      - name: Prepare build
+        run: |
+          rm -rf build
+          mkdir build
+          cd build
+          cmake ..
+          cmake --build .
+
+      # -------------------------------------------------------
+      # Step 4: Run unit tests
+      # TODO: need to update, I think we should not hard-code the executable name here
+      # -------------------------------------------------------
+      - name: Run tests
+        run: |
+          ls -l
+          ./build/cpp_lab_project_test
+
+      # -------------------------------------------------------
+      # Step 5: Generate code coverage report
+      # -------------------------------------------------------
+      - name: Generate coverage report
+        run: |
+          lcov -d . -c -o coverage.info
+          lcov -r coverage.info "*/build/*" "*/tests/*" "*/c++/*" -o coverageFiltered.info
+          lcov --list coverageFiltered.info
+
+      # -------------------------------------------------------
+      # Step 6: Upload coverage summary to GitHub summary
+      # -------------------------------------------------------
+      - name: Upload coverage to GitHub summary
+        run: |
+          echo "## Test Coverage Summary" >> $GITHUB_STEP_SUMMARY
+          lcov --summary coverageFiltered.info >> $GITHUB_STEP_SUMMARY

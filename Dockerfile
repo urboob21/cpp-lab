@@ -1,4 +1,6 @@
 # Define a new image from Ubuntu 2404
+# Dockerfile → defines your environment (compiler, cmake, libraries, tools).
+
 FROM ubuntu:24.04
 
 # Install prerequisites
@@ -9,7 +11,9 @@ RUN \
     apt-get update && \     
     # install cmake, gcc, g++
     apt-get install -y cmake && \  
-    apt-get install -y gcc g++
+    apt-get install -y gcc g++  && \
+    # install cppcheck
+    apt-get install -y cppcheck
 
 # Set the working directory inside the Docker image
 WORKDIR /cpp-lab
@@ -19,10 +23,10 @@ WORKDIR /cpp-lab
 # COPY . . 
 COPY . /cpp-lab
 
-# Build the main and test targets
-RUN \
-    # create a build folder
-    rm -rf build && mkdir build && \
-    cd build && \
-    cmake .. && \
-    cmake --build .
+# # Build the main and test targets
+# RUN \
+#     # create a build folder
+#     rm -rf build && mkdir build && \
+#     cd build && \
+#     cmake .. && \
+#     cmake --build .
