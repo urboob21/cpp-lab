@@ -21,6 +21,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Optionally enforce warnings (good for learning/debugging)
 add_compile_options(-Wall -Wextra -Wpedantic)
 
+message("C Compiler: ${CMAKE_C_COMPILER}")
+message("C++ Compiler: ${CMAKE_CXX_COMPILER}")
+message("C++ Compiler ID: ${CMAKE_CXX_COMPILER_ID}")
+message("C++ Compiler Version: ${CMAKE_CXX_COMPILER_VERSION}")
+
 # ----------------------------------------------------------------------------------------
 # Dependencies - GoogleTest
 # ----------------------------------------------------------------------------------------
