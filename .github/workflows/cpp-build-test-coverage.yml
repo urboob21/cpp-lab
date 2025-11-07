@@ -74,7 +74,7 @@ jobs:
       - name: Run tests
         run: |
           ls -l
-          ./build/cpp_lab_project_test
+          ./cpp_lab_project_test
 
       # -------------------------------------------------------
       # Step 5: Generate code coverage report
