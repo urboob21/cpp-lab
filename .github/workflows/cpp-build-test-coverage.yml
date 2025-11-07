@@ -82,6 +82,7 @@ jobs:
       # -------------------------------------------------------
       - name: Generate coverage report
         run: |
+          cd build
           lcov --rc geninfo_unexecuted_blocks=1 --ignore-errors mismatch -d . -c -o coverage.info
           lcov -r coverage.info "*/_deps/*" "/usr/*" "*/tests/*" -o coverageFiltered.info
           lcov --list coverageFiltered.info
@@ -91,5 +92,6 @@ jobs:
       # -------------------------------------------------------
       - name: Upload coverage to GitHub summary
         run: |
+          cd build
           echo "## Test Coverage Summary" >> $GITHUB_STEP_SUMMARY
           lcov --summary coverageFiltered.info >> $GITHUB_STEP_SUMMARY
