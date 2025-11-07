@@ -1,5 +1,5 @@
 # We can use a .dockerignore file to exclude files or directories from the build context.
-.git
+.git*
 .gitignore
 .env
 .vscode
