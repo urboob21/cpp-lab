@@ -73,6 +73,7 @@ jobs:
       # -------------------------------------------------------
       - name: Run tests
         run: |
+          cd build
           ls -l
           ./cpp_lab_project_test
 
