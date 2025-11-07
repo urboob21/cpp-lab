@@ -64,7 +64,7 @@ jobs:
           rm -rf build
           mkdir build
           cd build
-          cmake ..
+          cmake -DCMAKE_BUILD_TYPE=Debug -DENABLE_COVERAGE=ON ..
           cmake --build .
 
       # -------------------------------------------------------
@@ -82,8 +82,8 @@ jobs:
       # -------------------------------------------------------
       - name: Generate coverage report
         run: |
-          lcov -d . -c -o coverage.info
-          lcov -r coverage.info "*/build/*" "*/tests/*" "*/c++/*" -o coverageFiltered.info
+          lcov --rc geninfo_unexecuted_blocks=1 --ignore-errors mismatch -d . -c -o coverage.info
+          lcov -r coverage.info "*/_deps/*" "/usr/*" "*/tests/*" -o coverageFiltered.info
           lcov --list coverageFiltered.info
 
       # -------------------------------------------------------

@@ -26,6 +26,16 @@ message("C++ Compiler: ${CMAKE_CXX_COMPILER}")
 message("C++ Compiler ID: ${CMAKE_CXX_COMPILER_ID}")
 message("C++ Compiler Version: ${CMAKE_CXX_COMPILER_VERSION}")
 
+# Option to enable coverage
+option(ENABLE_COVERAGE "Enable coverage reporting" OFF)
+
+if(ENABLE_COVERAGE AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    message(STATUS "Enabling coverage flags")
+    add_compile_options(--coverage -O0 -g)
+    add_link_options(--coverage)
+endif()
+
+
 # ----------------------------------------------------------------------------------------
 # Dependencies - GoogleTest
 # ----------------------------------------------------------------------------------------
