@@ -13,7 +13,9 @@ RUN \
     apt-get install -y cmake && \  
     apt-get install -y gcc g++  && \
     # install cppcheck
-    apt-get install -y cppcheck
+    apt-get install -y cppcheck && \
+    # install lcov
+    apt-get install -y lcov
 
 # Set the working directory inside the Docker image
 WORKDIR /cpp-lab
