@@ -76,7 +76,8 @@ set(APP_HEADERS
 # Core source files
 set(APP_SOURCES
     "src/DeleteMe.cpp"
-    "src/core/1_basic.cpp"
+    "src/core/basics/InitializeVariable.cpp"
+    "src/core/basics/Operations.cpp"
 )
 
 # Test files
