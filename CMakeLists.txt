@@ -5,9 +5,19 @@ cmake_minimum_required(VERSION 3.14)
 # ----------------------------------------------------------------------------------------
 project(cpp_lab_project # ${PROJECT_NAME}
     VERSION 1.0.0
-    DESCRIPTION "The project with GoogleTest and CMake"
+    DESCRIPTION "A C/C++ project uses CMake, GoogleTest, gcc, g++, cppcheck, and lcov, integrated with Docker and GitHub Actions for CI/CD."
     LANGUAGES CXX
 )
+
+# Build timestamp
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/include)
+string(TIMESTAMP BUILD_TIME "%Y-%m-%d %H:%M:%S")
+
+configure_file(
+    ${CMAKE_SOURCE_DIR}/include/version.h.in
+    ${CMAKE_BINARY_DIR}/generated/version.h
+)
+
 
 set(PROJECT_NAME_TEST ${PROJECT_NAME}_unit_test) # name for the unit-test executable
 
@@ -60,11 +70,14 @@ enable_testing()
 # Header files directory
 set(APP_HEADERS 
     "include"
+    "${CMAKE_BINARY_DIR}/generated"   # cmake generated headers
 )
 
 # Core source files
 set(APP_SOURCES
     "src/DeleteMe.cpp"
+    "src/core/basics/InitializeVariable.cpp"
+    "src/core/basics/Operations.cpp"
 )
 
 # Test files
