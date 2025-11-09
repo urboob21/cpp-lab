@@ -78,6 +78,7 @@ set(APP_SOURCES
     "src/DeleteMe.cpp"
     "src/core/basics/InitializeVariable.cpp"
     "src/core/basics/Operations.cpp"
+    "src/core/basics/ControlFlow.cpp"
 )
 
 # Test files
