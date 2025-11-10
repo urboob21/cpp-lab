@@ -76,19 +76,20 @@ set(APP_HEADERS
 # Core source files
 set(APP_SOURCES
     "src/DeleteMe.cpp"
-    # "src/core/basics/InitializeVariable.cpp"
-    # "src/core/basics/Operations.cpp"
-    # "src/core/basics/ControlFlow.cpp"
-    # "src/core/datatypes/Fundamental.cpp"
-    # "src/core/datatypes/CArray.cpp"
-    # "src/core/datatypes/CReferences.cpp"
-    # "src/core/datatypes/CPointers.cpp"
-    # "src/core/datatypes/CEnum.cpp"
-    # "src/core/datatypes/CStruct.cpp"
-    # "src/core/datatypes/CUnion.cpp"
-    # "src/core/datatypes/TypeConVersions.cpp"
-    # "src/core/datatypes/class/CConstructors.cpp"
+    "src/core/basics/InitializeVariable.cpp"
+    "src/core/basics/Operations.cpp"
+    "src/core/basics/ControlFlow.cpp"
+    "src/core/datatypes/Fundamental.cpp"
+    "src/core/datatypes/CArray.cpp"
+    "src/core/datatypes/CReferences.cpp"
+    "src/core/datatypes/CPointers.cpp"
+    "src/core/datatypes/CEnum.cpp"
+    "src/core/datatypes/CStruct.cpp"
+    "src/core/datatypes/CUnion.cpp"
+    "src/core/datatypes/TypeConVersions.cpp"
+    "src/core/datatypes/class/CConstructors.cpp"
     "src/core/datatypes/class/CDestructors.cpp"
+    "src/patterns/structural/Adapter.cpp"
 )
 
 # Test files
