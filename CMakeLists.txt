@@ -90,6 +90,7 @@ set(APP_SOURCES
     "src/core/datatypes/class/CConstructors.cpp"
     "src/core/datatypes/class/CDestructors.cpp"
     "src/patterns/structural/Adapter.cpp"
+    "src/patterns/structural/Bridge.cpp"
 )
 
 # Test files
