@@ -1,5 +1,14 @@
-// Proxy is a structural design pattern that provides an object that acts as a substitute for a real service object used by a client.
+// Proxy is a structural design pattern that lets you provide a substitute or placeholder for another object.
+// A proxy controls access to the original object, allowing you to perform something
+// either before or after the request gets through to the original object.
 // A proxy receives client requests, does some work (access control, caching, etc.) and then passes the request to a service object.
+// Appicability:
+// (*)   Lazy initialization (virtual proxy) /  Logging requests (logging proxy)  / Caching request results (caching proxy)
+// (**)  Access control (protection proxy). 
+// (***) Local execution of a remote service (remote proxy). This is when the service object is located on a remote server.
+
+// Composition - lazy
+// Aggregation - x
 // UML: docs/uml/patterns_structural_proxy.drawio.svg
 
 #include <iostream>
