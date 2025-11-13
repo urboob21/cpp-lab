@@ -367,7 +367,8 @@ namespace
                 // Delete folder should delete all children
                 for (FileSystem *f : _children)
                 {
-                    delete f;
+                    if (f != nullptr)
+                        delete f;
                 }
             }
 
