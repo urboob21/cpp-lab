@@ -46,6 +46,7 @@ jobs:
       # Step 2: Run Cppcheck (Static Analysis)
       # - Scans for common C++ issues (style, memory, logic)
       # - You can adjust `--enable=` options as needed
+      # - https://cppcheck.sourceforge.io/manual.pdf
       # -------------------------------------------------------
       - name: Run static analysis with Cppcheck
         run: |
@@ -53,6 +54,7 @@ jobs:
           cppcheck --enable=warning,style,performance,portability \
                    --inconclusive \
                    --quiet \
+                   --inline-suppr \
                    --error-exitcode=1 \
                    ./src ./include
 
