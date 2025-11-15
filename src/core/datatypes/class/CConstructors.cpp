@@ -55,7 +55,10 @@ namespace InitializerList
     }
 }
 
-// *2. Default constructor: is a constructor that accepts no arguments.
+// *2. Default constructor:
+// It is a constructor that accepts no arguments.
+// Generated if no constructors are declared
+// Initializes members: basic types uninitialized, class types call their default constructor
 namespace Default
 {
     class UConstructors
@@ -115,6 +118,7 @@ namespace Default
 }
 
 // *3. Delegate constructor: allow to delegate initialization to another constructor
+// Never generated automatically
 namespace Delegate
 {
     class CConstructor
@@ -154,6 +158,8 @@ namespace Delegate
 }
 
 // *4.  Copy constructor:  initialize an copy object with an existing object
+// Generated if no copy/move constructor or destructor is declared
+// Performs memberwise (shallow) copy
 namespace Copy
 {
     class ICConstructor // C++ will create a public implicit copy constructor for us if we do not provide a one.
@@ -238,6 +244,14 @@ namespace Copy
         // DECConstructor obj6{obj5}; error
         obj5.print();
     }
+}
+
+// *4.  Copy constructor:  initialize an copy object with an existing object
+// Generated if no copy/move constructor or destructor is declared
+// Performs memberwise (shallow) copy
+namespace Copy
+{
+
 }
 
 struct CConstructorsAutoRuner

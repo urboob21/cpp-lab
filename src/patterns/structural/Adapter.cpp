@@ -1,4 +1,8 @@
-// Adapters make legacy code work with modern classes.
+// Adapters is a structural design pattern that allows objects with incompatible interfaces to collaborate.
+// Appicability:
+// (*) When you want to use some existing class, but its interface isn’t compatible with the rest of your code
+// (**)When you want to reuse several existing subclasses that lack some common functionality that can’t be added to the superclass.
+
 // UML: docs/uml/patterns_structural_adapter.drawio.svg
 
 #include <iostream>

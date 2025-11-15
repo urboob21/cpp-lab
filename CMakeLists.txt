@@ -89,10 +89,13 @@ set(APP_SOURCES
     "src/core/datatypes/TypeConVersions.cpp"
     "src/core/datatypes/class/CConstructors.cpp"
     "src/core/datatypes/class/CDestructors.cpp"
+    "src/core/datatypes/class/SallowDeepCopying.cpp"
+    "src/core/datatypes/class/RoleOfThreeFiveZero.cpp"
     "src/patterns/structural/Adapter.cpp"
     "src/patterns/structural/Bridge.cpp"
     "src/patterns/structural/Proxy.cpp"
     "src/patterns/structural/Composite.cpp"
+    "src/patterns/structural/Flyweight.cpp"
 )
 
 # Test files

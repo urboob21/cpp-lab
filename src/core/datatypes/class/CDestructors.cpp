@@ -2,6 +2,9 @@
 using namespace std;
 
 // *1. Basic Destructor
+// Generated if no destructor is declared
+// Calls destructors of members automatically
+// Does not free dynamically allocated memory unless you write it
 namespace Basic
 {
     class CDestructors

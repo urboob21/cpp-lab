@@ -1,3 +1,11 @@
+// Composite is a structural design pattern
+// that lets you compose objects into "tree structures"
+// and then work with these structures as if they were individual objects.
+// Appicability:
+// (*)   when you have to implement a tree-like object structure.
+// (**)  when you want the client code to treat both simple and complex elements uniformly.
+// UML: docs/uml/patterns_structural_Composite.drawio.svg
+
 #include <iostream>
 #include <string>
 #include <list>
@@ -276,6 +284,11 @@ namespace
                 return this->_name;
             }
 
+            virtual int size() const
+            {
+                return 1;
+            }
+
             void setName(const std::string &name)
             {
                 this->_name = name;
@@ -365,10 +378,13 @@ namespace
             ~Folder()
             {
                 // Delete folder should delete all children
-                for (FileSystem *f : _children)
+                for (auto f : _children)
                 {
                     if (f != nullptr)
+                    {
                         delete f;
+                        f = nullptr;
+                    }
                 }
             }
 
@@ -389,7 +405,7 @@ namespace
                 std::cout << "Open Folder: " << this->getName() << "\n";
             }
 
-            int size() const
+            int size() const override
             {
                 int size = static_cast<int>(_children.size());
                 std::for_each(_children.begin(), _children.end(), [&size](FileSystem *fs)
@@ -466,7 +482,7 @@ namespace
         {
             void clientCode(const FileSystem *fs)
             {
-                std::cout << "File name: " << fs->getName() << "\n";
+                std::cout << "File name: " << fs->getName() << ", size: " << fs->size() << "\n";
                 fs->open();
             }
         }
@@ -484,6 +500,7 @@ namespace
             root->add(file1);
             root->add(file2);
             root->add(file3);
+            Client::clientCode(file1);
             Client::clientCode(root);
 
             Folder *subFolder1 = new Folder("subFolder1");
@@ -492,8 +509,25 @@ namespace
             root->add(subFolder1);
             root->add(subFolder2);
             root->add(subFolder3);
-
             Client::clientCode(root);
+
+            // delete file1;
+            // file1 = nullptr;
+
+            // delete file2;
+            // file2 = nullptr;
+
+            // delete file3;
+            // file3 = nullptr;
+
+            // delete subFolder1;
+            // subFolder1 = nullptr;
+
+            // delete subFolder2;
+            // subFolder2 = nullptr;
+
+            // delete subFolder3;
+            // subFolder3 = nullptr;
 
             delete root; // deletes all files/subfolders inside recursively
         }
