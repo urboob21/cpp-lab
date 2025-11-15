@@ -1,3 +1,5 @@
+// cppcheck-suppress-file [noCopyConstructor, noOperatorEq, accessMoved]
+
 #include <cstring>
 #include <iostream>
 #include <utility>
