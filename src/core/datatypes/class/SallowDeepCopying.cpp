@@ -1,3 +1,5 @@
+// cppcheck-suppress-file [noCopyConstructor, noOperatorEq, unsafeClassCanLeak]
+
 #include <iostream>
 
 namespace
@@ -35,12 +37,13 @@ namespace
                 }
             }
 
-            int getPtr()
+            int getPtr() const
             {
                 if (ptr != nullptr)
                 {
                     return *ptr;
                 }
+                return 0;
             }
 
             // Implicit copy constructor: Model a{b};
@@ -149,12 +152,13 @@ namespace
                 }
             }
 
-            int getPtr()
+            int getPtr() const
             {
                 if (ptr != nullptr)
                 {
                     return *ptr;
                 }
+                return 0;
             }
         };
 
