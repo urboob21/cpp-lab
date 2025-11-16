@@ -158,8 +158,14 @@ namespace Delegate
 }
 
 // *4.  Copy constructor:  initialize an copy object with an existing object
-// Generated if no copy/move constructor or destructor is declared
+// Generated if no copy/move constructor or `destructor` is declared
 // Performs memberwise (shallow) copy
+//  * Copy constructor
+// Object obj1 = obj2
+// Object obj1(obj2)
+// Object obj1{obj2}
+//  * Copy assigment
+// obj1 = obj1
 namespace Copy
 {
     class ICConstructor // C++ will create a public implicit copy constructor for us if we do not provide a one.
@@ -192,12 +198,25 @@ namespace Copy
             cout << "Called  ICConstructor(int x, int y) : m_x{x}, m_y{y} \n";
         }
 
+        // Implicit Copy constructor if there is no desconstrutor
         // using `default` keyword
         // ECConstructor(const ECConstructor &ref) = default;
 
+        // Explicit Copy constructor (a=ECConstructor(b))
         ECConstructor(const ECConstructor &ref) : m_x{ref.m_x}, m_y{ref.m_x}
         {
             cout << "Called  ECConstructor(const ECConstructor& ref) : m_x{ref.m_x}, m_y{ref.m_x} \n";
+        }
+
+        // Copy assigment (a=b)
+        ECConstructor &operator=(const ECConstructor &other)
+        {
+            if (this != &other)
+            {
+                this->m_x = other.m_x;
+                this->m_y = other.m_y;
+            }
+            return *this;
         }
 
         void print() const
@@ -246,12 +265,90 @@ namespace Copy
     }
 }
 
-// *4.  Copy constructor:  initialize an copy object with an existing object
-// Generated if no copy/move constructor or destructor is declared
-// Performs memberwise (shallow) copy
-namespace Copy
+// *4. Move Constructor:
+// Move constructor and move assignment transfer resource ownership
+// from one object to another. This is usually cheaper than copying.
+// A move constructor is implicitly generated only if no user-declared
+// copy constructor, move constructor, or destructor exists.
+namespace Move
 {
+    class Model // C++ will create a public implicit copy constructor for us if we do not provide a one.
+    {
+    private:
+        int m_x;
+        int m_y;
 
+    public:
+        Model(int x, int y) : m_x{x}, m_y{y}
+        {
+            cout << "Call constructor \n";
+        }
+
+        ~Model()
+        {
+            cout << "Call destructor \n";
+        }
+
+        Model(const Model &other) : Model(other.m_x, other.m_y)
+        {
+            cout << "Call copy constructor \n";
+        }
+
+        Model &operator=(const Model &other)
+        {
+            cout << "Call copy assigment \n";
+            if (this != &other)
+            {
+                this->m_x = other.m_x;
+                this->m_y = other.m_y;
+            }
+            return *this;
+        }
+
+        Model(Model &&source) noexcept : m_x(source.m_x), m_y(source.m_y)
+        {
+            cout << "Call move constructor\n";
+
+            // reset source
+            source.m_x = 0;
+            source.m_y = 0;
+        }
+
+        Model &operator=(Model &&source) noexcept
+        {
+            cout << "Call move assigment \n";
+            if (this != &source)
+            {
+                this->m_x = source.m_x;
+                this->m_y = source.m_y;
+
+                // reset source
+                source.m_x = 0;
+                source.m_y = 0;
+            }
+
+            return *this;
+        }
+
+        void print() const
+        {
+            cout << "m_x = " << m_x << ", m_y = " << m_y << "\n";
+        }
+    };
+
+    void constructers()
+    {
+        cout << "\n--- Move Constructor Examples ---\n";
+        Model a(10, 20);
+
+        cout << "\nCase 1: Model b = std::move(a);\n";
+        Model b = std::move(a); // move constructor
+
+        cout << "\nCase 2: Model c(5,6); c = std::move(b);\n";
+        Model c(5, 6);
+        c = std::move(b); // move assignment
+        cout << "\n";
+    }
 }
 
 struct CConstructorsAutoRuner
@@ -262,6 +359,7 @@ struct CConstructorsAutoRuner
         Default::constructers();
         Delegate::constructors();
         Copy::constructors();
+        Move::constructers();
     }
 };
 

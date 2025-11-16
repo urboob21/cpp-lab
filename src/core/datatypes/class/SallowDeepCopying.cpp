@@ -92,14 +92,14 @@ namespace
 
             void deepCopy(const Model &source)
             {
-                // first we need to deallocate any value that this Model is holding!
-                delete ptr;
-
                 // sallow copy the normal fields
                 m_x = source.m_x;
                 m_y = source.m_y;
 
+                // deep copy the ptr field
                 // m_data is a pointer, so we need to deep copy it if it is non-null
+                // first we need to deallocate any value that this Model is holding!
+                delete ptr;
                 if (source.ptr != nullptr)
                 {
                     // allocate memory for our copy
@@ -128,12 +128,16 @@ namespace
             }
 
             // Copy constructor
+            // no need to check self-copy [if (this != &source)]
+            // because it cannot happen a(a);  
             Model(const Model &source)
             {
                 this->deepCopy(source);
             }
 
             // Assignment operator
+            // need to check self-copy [if (this != &source)]
+            // because it posible a = a;  
             Model &operator=(const Model &source)
             {
                 if (this != &source)

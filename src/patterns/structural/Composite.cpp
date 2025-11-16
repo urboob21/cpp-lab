@@ -267,7 +267,10 @@ namespace
 
         public:
             explicit FileSystem(const std::string &fileName) : _parent{nullptr}, _name{fileName} {}
-            virtual ~FileSystem() = default;
+            virtual ~FileSystem()
+            {
+                std::cout << "Destructor: " << this->getName() << "\n";
+            }
 
             FileSystem *getParent() const
             {
@@ -380,22 +383,21 @@ namespace
                 // Delete folder should delete all children
                 for (auto f : _children)
                 {
-                    if (f != nullptr)
-                    {
+                        std::cout << "Folder '" << this->getName() << "' deleted : " << f->getName() << "\n";
                         delete f;
-                        f = nullptr;
-                    }
                 }
             }
 
             void add(FileSystem *fs) override
             {
+                std::cout << "Folder '" << this->getName() << "' added : " << fs->getName() << "\n";
                 _children.push_back(fs);
                 fs->setParent(this);
             }
 
             void remove(FileSystem *fs) override
             {
+                std::cout << "Folder: " << this->getName() << "removed : " << fs->getName() << "\n";
                 _children.remove(fs);
                 fs->setParent(nullptr);
             }
@@ -511,23 +513,14 @@ namespace
             root->add(subFolder3);
             Client::clientCode(root);
 
-            // delete file1;
-            // file1 = nullptr;
+            root->remove(file1);
+            delete file1;
 
-            // delete file2;
-            // file2 = nullptr;
+            root->remove(file2);
+            delete file2;
 
-            // delete file3;
-            // file3 = nullptr;
-
-            // delete subFolder1;
-            // subFolder1 = nullptr;
-
-            // delete subFolder2;
-            // subFolder2 = nullptr;
-
-            // delete subFolder3;
-            // subFolder3 = nullptr;
+            root->remove(file3);
+            delete file3;
 
             delete root; // deletes all files/subfolders inside recursively
         }
@@ -541,7 +534,7 @@ struct CompositeAutoRuner
     CompositeAutoRuner()
     {
         std::cout << "\n--- Composite Pattern Example ---\n";
-        Problem::run();
+        // Problem::run();
         CompositePattern::run();
     }
 };

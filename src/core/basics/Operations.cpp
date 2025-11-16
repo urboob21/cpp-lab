@@ -52,7 +52,7 @@ void arithmeticOperator()
 
     // Increment
     cout << "a = " << a << "\n";
-    int preIn = ++a; // increase a, return copy
+    int preIn = ++a; // increase a, return a
     cout << "preIn = " << preIn << "\n";
 
     cout << "a = " << a << "\n";
