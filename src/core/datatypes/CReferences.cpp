@@ -48,6 +48,18 @@ void references()
     std::cout << "By reference: " << b << '\n';
 }
 
+/**
+ * 
+  a (lvalue) 
+  |
+  | std::move(a) (rvalue reference)
+  V
+source (rvalue reference parameter, but it's the lvalue inside the function)
+  |
+  | steal data
+  V
+  b
+ */
 namespace RvalueReference
 {
     using namespace std;

@@ -1,9 +1,10 @@
-//
+// Flyweight is a structural design pattern that lets you fit more objects
+// into the available amount of RAM by sharing common parts of state between multiple objects
+//  instead of keeping all of the data in each object.
 // Appicability:
-// (*)
-// (**)
-
-// UML: docs/uml/patterns_structural_adapter.drawio.svg
+// (*) when your program must support a huge number of objects which barely fit into available RAM,
+//     and the objects contain duplicate states which can be extracted and shared between multiple objects
+// UML: docs/uml/patterns_structural_flyweight.drawio.svg
 
 #include <iostream>
 #include <string>
@@ -118,7 +119,7 @@ namespace
 
         void run()
         {
-            std::cout << "\n\n";
+            std::cout << "\n\nProblem\n";
             ImageContext **imgs = new ImageContext *[5];
             for (int i = 0; i < 5; i++)
             {
@@ -329,7 +330,7 @@ namespace
 
         void run()
         {
-            std::cout << "\n\n";
+            std::cout << "\n\nFlyweight\n";
             // Regis the images to the factory
             ImageFlyweightFactory *imageRegister = new ImageFlyweightFactory();
             ImageContext *img1 = new ImageContext(imageRegister->getImangeFlyweight("img1.svg"), 1, 0.1);
