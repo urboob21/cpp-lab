@@ -4,7 +4,7 @@
 // Appicability:
 // (*)   when you have to implement a tree-like object structure.
 // (**)  when you want the client code to treat both simple and complex elements uniformly.
-// UML: docs/uml/patterns_structural_Composite.drawio.svg
+// UML: docs/uml/patterns_structural_facade.drawio.svg
 
 #include <iostream>
 #include <string>
