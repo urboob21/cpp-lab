@@ -16,6 +16,9 @@ namespace
 {
     namespace CoR
     {
+        /*
+        *  Handler - defines an interface for handling requests
+        */
         class IHandler
         {
         public:
@@ -57,6 +60,10 @@ namespace
             }
         };
 
+        /**
+         * CoreteHandlers - handles the requests it is responsible for
+         * If it can handle the request it does so, otherwise it sends the request to its successor
+         */
         class ConcreteHandlerGET : public AbstractHandler
         {
         private:
@@ -116,6 +123,9 @@ namespace
             }
         };
 
+        /**
+         * Client - sends commands to the first object in the chain that may handle the command
+         */
         namespace Client
         {
             void clientCode(IHandler &handler, const std::string &request)
@@ -155,6 +165,7 @@ struct CoRAutoRunner
 {
     CoRAutoRunner()
     {
+        std::cout << "\n--- CoR Pattern Example ---\n";
         CoR::run();
     }
 };

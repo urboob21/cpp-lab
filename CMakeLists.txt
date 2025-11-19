@@ -99,6 +99,7 @@ set(APP_SOURCES
     "src/patterns/structural/Facade.cpp"
     "src/patterns/structural/Decorator.cpp"
     "src/patterns/behavioral/ChainOfCommand.cpp"
+    "src/patterns/behavioral/Command.cpp"
 )
 
 # Test files
