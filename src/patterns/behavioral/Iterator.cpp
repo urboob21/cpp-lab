@@ -5,7 +5,7 @@
 // (**)  reduce duplication of the traversal code across your app.
 // (***) when you want your code to be able to traverse different data structures or when types of these structures are unknown beforehand.
 
-// UML: docs/uml/patterns_behavioral_command.drawio.svg
+// UML: docs/uml/patterns_behavioral_iterator.drawio.svg
 
 #include <iostream>
 #include <string>
