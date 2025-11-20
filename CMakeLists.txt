@@ -100,6 +100,7 @@ set(APP_SOURCES
     "src/patterns/structural/Decorator.cpp"
     "src/patterns/behavioral/ChainOfCommand.cpp"
     "src/patterns/behavioral/Command.cpp"
+    "src/patterns/behavioral/Iterator.cpp"
 )
 
 # Test files
