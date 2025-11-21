@@ -101,6 +101,7 @@ set(APP_SOURCES
     "src/patterns/behavioral/ChainOfCommand.cpp"
     "src/patterns/behavioral/Command.cpp"
     "src/patterns/behavioral/Iterator.cpp"
+    "src/patterns/behavioral/Mediator.cpp"
 )
 
 # Test files
