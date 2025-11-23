@@ -106,6 +106,7 @@ set(APP_SOURCES
     "src/patterns/behavioral/Visitor.cpp"
     "src/patterns/behavioral/TemplateMethod.cpp"
     "src/patterns/behavioral/Strategy.cpp"
+    "src/patterns/behavioral/State.cpp"
 )
 
 # Test files
