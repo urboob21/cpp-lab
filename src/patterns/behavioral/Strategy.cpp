@@ -33,7 +33,7 @@ namespace
                 delete m_strategy;
             }
 
-            ExportContext(std::string content, IExportStrategy *const strategy = nullptr)
+            explicit ExportContext(std::string content, IExportStrategy *const strategy = nullptr)
                 : m_content{content}, m_strategy{strategy} {}
 
             void setExportStrategy(IExportStrategy *const strategy)
