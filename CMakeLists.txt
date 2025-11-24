@@ -108,6 +108,7 @@ set(APP_SOURCES
     "src/patterns/behavioral/Strategy.cpp"
     "src/patterns/behavioral/State.cpp"
     "src/patterns/behavioral/Observer.cpp"
+    "src/patterns/creational/Singleton.cpp"
 )
 
 # Test files
