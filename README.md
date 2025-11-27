@@ -12,7 +12,21 @@ Make sure the following tools are installed before building the project:
 - **Git**
 - **lcov** (for code coverage)
 - **cppcheck** (for static analysis)
+- **Optional:** Install `clang-format` to format C++ code.
 
+Linux
+```bash
+sudo apt install clang-format
+find . -regex '.*\.\(cpp\|h\|hpp\)' -exec clang-format -i {} \;
+```
+Windows
+```bash
+# Install clang-format via Chocolatey
+choco install clang-format
+
+# Apply clang-format recursively to .cpp, .h, .hpp files
+Get-ChildItem -Recurse -Include *.cpp, *.h, *.hpp | ForEach-Object { clang-format -i $_.FullName }
+```
 ## 3. SETUP
 * Setup the Local Test Environment
     * 1.Using your own Ubuntu system
