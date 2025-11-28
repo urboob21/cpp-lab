@@ -166,13 +166,13 @@ void run() {
 }
 }  // namespace BridgePattern
 
-struct BridgeAutoruner {
-  BridgeAutoruner() {
+struct BridgeAutoRunner {
+  BridgeAutoRunner() {
     std::cout << "\n--- Bridge Pattern Example ---\n";
     Problem::run();
     BridgePattern::run();
   }
 };
 
-static BridgeAutoruner instance;
+static BridgeAutoRunner instance;
 }  // namespace

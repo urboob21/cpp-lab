@@ -111,7 +111,9 @@ set(APP_SOURCES
     "src/patterns/behavioral/Observer.cpp"
     "src/patterns/creational/Singleton.cpp"
     "src/patterns/creational/FactoryMethod.cpp"
+    "src/patterns/creational/AbstractFactory.cpp"
     "src/patterns/creational/Builder.cpp"
+    "src/patterns/creational/Prototype.cpp"
 )
 
 # Test files

@@ -51,22 +51,23 @@ class MacOsGdbProduct : public IGdbProduct {
   }
 };
 
+// ===================================================================================
+
 /**
  * The Creator class declares the factory method that is supposed to return an
  * object of a Product class. The Creator's subclasses usually provide the
- * implementation of this method.
+ * implementation of this method. (a.k.a IGdbFactory)
  */
-class IGdbCreator {
+class IGdbFactory {
  public:
-  virtual ~IGdbCreator() = default;
+  virtual ~IGdbFactory() = default;
   virtual IGdbProduct* factoryMethod() = 0;
   virtual void launchGdb() = 0;
 };
 
-class AbstractGdbCreater : public IGdbCreator {
+class AbstractGdbFactory : public IGdbFactory {
  public:
-  //  Call the factory method to create a Product object.
-
+  // Call the factory method to create a Product object.
   void launchGdb() override final {
     IGdbProduct* gdb = this->factoryMethod();
     gdb->launch();
@@ -78,20 +79,22 @@ class AbstractGdbCreater : public IGdbCreator {
  * Concrete Creators override the factory method in order to change the
  * resulting product's type.
  */
-class WindowsGdbCreator : public AbstractGdbCreater {
+class WindowsGdbFactory : public AbstractGdbFactory {
  public:
   IGdbProduct* factoryMethod() override { return new WindowsGdbProduct(); }
 };
 
-class LinuxGdbCreator : public AbstractGdbCreater {
+class LinuxGdbFactory : public AbstractGdbFactory {
  public:
   IGdbProduct* factoryMethod() override { return new LinuxGdbProduct(); }
 };
 
-class MacOsGdbCreator : public AbstractGdbCreater {
+class MacOsGdbFactory : public AbstractGdbFactory {
  public:
   IGdbProduct* factoryMethod() override { return new MacOsGdbProduct(); }
 };
+
+// ===================================================================================
 
 /**
  * The client code works with an instance of a concrete creator, albeit through
@@ -99,31 +102,28 @@ class MacOsGdbCreator : public AbstractGdbCreater {
  * the base interface, you can pass it any creator's subclass.
  */
 namespace ClientCode {
-void clientCode(IGdbCreator* gdb) {
+void clientCode(IGdbFactory* gdb) {
   if (gdb != nullptr)
     gdb->launchGdb();
 }
 }  // namespace ClientCode
 
-class GdbCreatorFactory {
- public:
-  static IGdbCreator* createGdbCreator(const std::string& os) {
-    if (os == "linux") {
-      return new LinuxGdbCreator();
-    } else if (os == "windows") {
-      return new WindowsGdbCreator();
-    } else if (os == "macos") {
-      return new MacOsGdbCreator();
-    } else {
-      std::cout << "OS not support yet - " << os << "\n";
-      return nullptr;
-    }
+IGdbFactory* createGdbFactory(const std::string& os) {
+  if (os == "linux") {
+    return new LinuxGdbFactory();
+  } else if (os == "windows") {
+    return new WindowsGdbFactory();
+  } else if (os == "macos") {
+    return new MacOsGdbFactory();
+  } else {
+    std::cout << "OS not support yet - " << os << "\n";
+    return nullptr;
   }
-};
+}
 
 void run() {
   std::string os = "linux";
-  IGdbCreator* gdb = GdbCreatorFactory::createGdbCreator(os);
+  IGdbFactory* gdb = createGdbFactory(os);
   ClientCode::clientCode(gdb);
   delete gdb;
 }

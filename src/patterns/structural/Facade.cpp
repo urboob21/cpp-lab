@@ -209,12 +209,12 @@ void run() {
 }  // namespace Facade
 }  // namespace
 
-struct FacadeAutoRuner {
-  FacadeAutoRuner() {
+struct FacadeAutoRunner {
+  FacadeAutoRunner() {
     std::cout << "\n--- Facade Pattern Example ---\n";
     Problem::run();
     Facade::run();
   }
 };
 
-static FacadeAutoRuner instance;
+static FacadeAutoRunner instance;

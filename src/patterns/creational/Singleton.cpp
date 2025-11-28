@@ -70,11 +70,11 @@ void run() {
 }  // namespace SingletonPattern
 }  // namespace
 
-struct SingletonAutoRuner {
-  SingletonAutoRuner() {
+struct SingletonAutoRunner {
+  SingletonAutoRunner() {
     std::cout << "\n--- Singleton Pattern Example ---\n";
     SingletonPattern::run();
   }
 };
 
-static SingletonAutoRuner instance;
+static SingletonAutoRunner instance;

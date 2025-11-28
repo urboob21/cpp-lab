@@ -185,12 +185,12 @@ void run() {
 
 }  // namespace
 
-struct DecoratorAutoRuner {
-  DecoratorAutoRuner() {
+struct DecoratorAutoRunner {
+  DecoratorAutoRunner() {
     std::cout << "\n--- Decorator Pattern Example ---\n";
     Problem::run();
     DecoratorPattern::run();
   }
 };
 
-static DecoratorAutoRuner instance;
+static DecoratorAutoRunner instance;

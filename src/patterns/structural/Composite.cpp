@@ -425,12 +425,12 @@ void run() {
 
 }  // namespace
 
-struct CompositeAutoRuner {
-  CompositeAutoRuner() {
+struct CompositeAutoRunner {
+  CompositeAutoRunner() {
     std::cout << "\n--- Composite Pattern Example ---\n";
     Problem::run();
     CompositePattern::run();
   }
 };
 
-static CompositeAutoRuner instance;
+static CompositeAutoRunner instance;

@@ -141,12 +141,12 @@ void run() {
 }
 }  // namespace CaseStudy
 
-struct AdapterAutoRuner {
-  AdapterAutoRuner() {
+struct AdapterAutoRunner {
+  AdapterAutoRunner() {
     std::cout << "\n--- Factory Pattern Example ---\n";
     AdapterPattern::run();
     CaseStudy::run();
   }
 };
 
-static AdapterAutoRuner instance;
+static AdapterAutoRunner instance;

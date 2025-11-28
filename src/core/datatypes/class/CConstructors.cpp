@@ -302,8 +302,8 @@ void constructers() {
 }
 }  // namespace Move
 
-struct CConstructorsAutoRuner {
-  CConstructorsAutoRuner() {
+struct CConstructorsAutoRunner {
+  CConstructorsAutoRunner() {
     InitializerList::constructers();
     Default::constructers();
     Delegate::constructors();
@@ -312,4 +312,4 @@ struct CConstructorsAutoRuner {
   }
 };
 
-static CConstructorsAutoRuner instance;
+static CConstructorsAutoRunner instance;

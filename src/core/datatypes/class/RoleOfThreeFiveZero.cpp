@@ -171,7 +171,7 @@ class Model {
   // noexcept is a specifier that indicates a function will not throw
   // exceptions.
   Model(Model&& other) noexcept
-      : cstring(std::exchange(other.cstring, nullptr)){};
+      : cstring(std::exchange(other.cstring, nullptr)) {};
 
   // V. move assignment
   Model& operator=(Model&& other) noexcept {
@@ -271,9 +271,9 @@ void run() {
 }
 }  // namespace RoleOfZero
 }  // namespace
-struct RoleOfThreeFiveZeroAutoRuner {
+struct RoleOfThreeFiveZeroAutoRunner {
   // Virtual default destructor: Does not break Rule of Three, Five, or Zero
-  RoleOfThreeFiveZeroAutoRuner() {
+  RoleOfThreeFiveZeroAutoRunner() {
     Problem::run();
     RoleOfThree::run();
     RoleOfFive::run();
@@ -281,4 +281,4 @@ struct RoleOfThreeFiveZeroAutoRuner {
   }
 };
 
-static RoleOfThreeFiveZeroAutoRuner instance;
+static RoleOfThreeFiveZeroAutoRunner instance;

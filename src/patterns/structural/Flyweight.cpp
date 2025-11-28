@@ -327,12 +327,12 @@ void run() {
 }  // namespace FlyweightPattern
 }  // namespace
 
-struct FlyweightAutoRuner {
-  FlyweightAutoRuner() {
+struct FlyweightAutoRunner {
+  FlyweightAutoRunner() {
     std::cout << "\n--- Flyweight Pattern Example ---\n";
     Problem::run();
     FlyweightPattern::run();
   }
 };
 
-static FlyweightAutoRuner instance;
+static FlyweightAutoRunner instance;

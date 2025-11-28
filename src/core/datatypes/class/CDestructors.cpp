@@ -57,11 +57,11 @@ void destructers() {
 }
 }  // namespace Virtual
 
-struct CDestructorsAutoRuner {
-  CDestructorsAutoRuner() {
+struct CDestructorsAutoRunner {
+  CDestructorsAutoRunner() {
     Basic::destructers();
     Virtual::destructers();
   }
 };
 
-static CDestructorsAutoRuner instance;
+static CDestructorsAutoRunner instance;
