@@ -1,79 +1,73 @@
-// Adapters is a structural design pattern that allows objects with incompatible
-// interfaces to collaborate. Appicability:
-// (*) When you want to use some existing class, but its interface isn’t
-// compatible with the rest of your code
-// (**)When you want to reuse several existing subclasses that lack some common
-// functionality that can’t be added to the superclass.
-
-// UML: docs/uml/patterns_structural_adapter.drawio.svg
-
+#include <memory>
 #include "Logger.h"
 
+#include "ExampleRegistry.h"
+
 namespace adapter_pattern {
-/**
- * The Adaptee contains some useful behavior, but its interface is incompatible
- * with the existing client code. The Adaptee needs some adaptation before the
- * client code can use it.
- */
+
+/// @class Adaptee
+/// @brief Existing class with an incompatible interface
 class Adaptee {
  public:
   void specific_request() {
-    dummy_++;
-    LOG("executed");
+    ++dummy_;
+    LOG("Adaptee::specific_request()");
   }
 
  private:
-  int dummy_{};
+  int dummy_{0};
 };
 
-/**
- * The Target defines the domain-specific interface used by the client code.
- */
+/// @class Target
+/// @brief Interface expected by the client
 class Target {
  public:
-  virtual void request() { LOG("executed"); }
+  virtual ~Target() = default;
+
+  virtual void request() = 0;
 };
 
-// ============================================================================================================
-// [Q] How can we make the clientCode works with Adaptee without change this
-// function (e.g this is in front-end)
-// => Create an Adapter
-// ============================================================================================================
-
-/**
- * The Adapter makes the Adaptee's interface compatible with the Target's
- * interface.
- */
-class Adapter : public Target {
- private:
-  Adaptee* adaptee_;
-
+/// @class ConcreteTarget
+/// @brief A normal implementation of Target
+class ConcreteTarget : public Target {
  public:
-  explicit Adapter(Adaptee* adaptee) : adaptee_{adaptee} { LOG("constructed"); }
-
-  void request() override { return adaptee_->specific_request(); }
+  void request() override { LOG("request"); }
 };
+
+/// @class Adapter
+/// @brief Converts the Target interface into the Adaptee interface
+class Adapter : public Target {
+ public:
+  explicit Adapter(std::unique_ptr<Adaptee> adaptee)
+      : adaptee_(std::move(adaptee)) {
+    LOG("CTR");
+  }
+
+  void request() override { adaptee_->specific_request(); }
+
+ private:
+  std::unique_ptr<Adaptee> adaptee_;
+};
+
+/// @brief Client code only depends on Target.
+void client_code(Target& target) {
+  LOG("");
+  target.request();
+}
 
 void run() {
   LOG("Adapter Example");
+  {
+    ConcreteTarget target;
+    client_code(target);
+  }
+  LOG("");
 
-  // The client code supports all classes that follow the Target interface.
-  auto client_code = [](Target* target) {
-    LOG("executed");
-    target->request();
-  };
-
-  LOG("Client: Can work just fine with the Target objects:");
-  Target target = Target();
-  client_code(&target);
-
-  LOG("Client: Cannot work with the Adaptee objects:");
-  Adaptee adaptee = Adaptee();
-  // Client::clientCode(&adaptee); // error
-
-  LOG("Client: But can work with it via the Adapter:");
-  auto adapter = Adapter(&adaptee);
-  client_code(&adapter);
+  {
+    auto adaptee = std::make_unique<Adaptee>();
+    Adapter adapter(std::move(adaptee));
+    client_code(adapter);
+  }
 }
 }  // namespace adapter_pattern
 
@@ -139,8 +133,6 @@ void run() {
   delete payment_system;
 }
 }  // namespace case_study
-
-#include "ExampleRegistry.h"
 
 class AdapterExample : public IExample {
  public:
