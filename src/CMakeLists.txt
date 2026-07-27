@@ -8,6 +8,7 @@ add_subdirectory(controller)
 add_subdirectory(dp)
 add_subdirectory(socket)
 add_subdirectory(ap)
+add_subdirectory(demo)
 
 # Header files directory
 set(APP_HEADERS
