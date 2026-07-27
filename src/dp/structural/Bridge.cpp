@@ -1,16 +1,3 @@
-// Bridge lets we split a large class or a set of closely related classes
-// into two separate hierarchies—abstraction and implementation
-// which can be developed independently of each other.
-// Appicability:
-// (*)   when you want to divide and organize a monolithic class that has
-// several variants of some functionality
-//       (for example, if the class can work with various database servers).
-// (**)  when you need to extend a class in several orthogonal (independent)
-// dimensions.
-// (***) when you you need to be able to switch implementations at runtime.
-
-// UML: docs/uml/patterns_structural_bridge.drawio.svg
-
 #include <memory>
 #include <utility>
 #include "ExampleRegistry.h"
@@ -24,7 +11,6 @@ class Widget {
   virtual void click_on() const = 0;
 };
 
-/* Concrete variations for Button */
 class Button : public Widget {
  public:
   void click_on() const override { LOG("executed"); }
@@ -46,7 +32,6 @@ class ButtonLinux : public Button {
   }
 };
 
-/* Concrete variations for Label */
 class Label : public Widget {
  public:
   void click_on() const override { LOG("executed"); }
@@ -70,8 +55,6 @@ class LabelLinux : public Label {
 
 void run() {
   LOG("Problem");
-  /* Concrete variations for others widgets like Text,CCombo  or new platform
- * macOS etc*/
   // [Problem 1] We have to write the Text/TextLinux ...
   auto client_code = [](const Widget* widget) {
     if (widget != nullptr)
@@ -87,13 +70,8 @@ void run() {
 }  // namespace problem
 
 namespace bridge_pattern {
-/**
- * The Implementation defines the interface for all implementation classes. It
- * doesn't have to match the Abstraction's interface. In fact, the two
- * interfaces can be entirely different. Typically the Implementation interface
- * provides only primitive Widgets, while the Abstraction defines higher-
- * level Widgets based on those primitives.
- */
+/// @class Implemetation Interface
+/// @brief Define the interface for all implementation classes
 class OsImplemetation {
  public:
   virtual void click_on_ipl() const = 0;
@@ -110,11 +88,8 @@ class LinuxImplemetation : public OsImplemetation {
   void click_on_ipl() const override { LOG("[Linux]"); }
 };
 
-/**
- * The Abstraction defines the interface for the "control" part of the two class
- * hierarchies. It maintains a reference to an object of the Implementation
- * hierarchy and delegates all of the real work to this object.
- */
+/// @class Abstractio Class
+/// @brief Define the interface for the control part
 class WidgetAbstraction {
  protected:
   std::shared_ptr<OsImplemetation> implementation_;
@@ -127,9 +102,6 @@ class WidgetAbstraction {
   virtual void click_on() const = 0;
 };
 
-/**
- * We can extend the Abstraction without changing the Implementation classes.
- */
 class ButtonAbstraction : public WidgetAbstraction {
  public:
   explicit ButtonAbstraction(std::shared_ptr<OsImplemetation> implemetation)
@@ -153,20 +125,23 @@ class LabelAbstraction : public WidgetAbstraction {
 void run() {
   LOG("Bridge Example");
   auto client_code = [](const WidgetAbstraction* widget) {
-    if (widget != nullptr)
+    if (widget != nullptr) {
+      LOG("");
       widget->click_on();
+    }
   };
 
-  std::shared_ptr<OsImplemetation> os =
-      std::make_shared<WindowsImplemetation>();
-  WidgetAbstraction* widget = new ButtonAbstraction(os);
-  client_code(widget);
+  {
+    auto os = std::make_shared<WindowsImplemetation>();
+    auto widget = std::make_unique<ButtonAbstraction>(os);
+    client_code(widget.get());
+  }
 
-  os = std::make_shared<LinuxImplemetation>();
-  widget = new LabelAbstraction(os);
-  client_code(widget);
-
-  delete widget;
+  {
+    auto os = std::make_shared<LinuxImplemetation>();
+    auto widget = std::make_unique<LabelAbstraction>(os);
+    client_code(widget.get());
+  }
 }
 }  // namespace bridge_pattern
 
