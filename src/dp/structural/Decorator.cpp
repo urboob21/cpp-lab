@@ -1,16 +1,10 @@
-// Decorator is a structural design pattern that lets you attach new behaviors
-// to objects by placing these objects inside special wrapper objects that
-// contain the behaviors. Appicability:
-// (*)   when you need to be able to assign extra behaviors to objects at
-// runtime without breaking the code that uses these objects.
-// (**)  when it’s awkward or not possible to extend an object’s behavior using
-// inheritance. UML: docs/uml/patterns_structural_decorator.drawio.svg
-
-#include <iostream>
+#include <memory>
 #include <string>
+#include "Logger.h"
+
+#include "ExampleRegistry.h"
 
 namespace {
-namespace problem {
 
 class IComponent {
  public:
@@ -18,6 +12,11 @@ class IComponent {
   virtual std::string operation() const = 0;
 };
 
+auto client_code = [](const IComponent* comp) {
+  LOG(comp->operation());
+};
+
+namespace problem {
 class ConcreteComponent : public IComponent {
  public:
   std::string operation() const override { return "ConcreteComponent"; }
@@ -44,86 +43,50 @@ class ComponentWithAandB : public ConcreteComponent {
   }
 };
 
-// [P1]
-// If you have 3 features , e.g FeatureC -> many combinations
-// If you have 5 features -> 32 subclasses
-
-namespace client {
-void clientCode(const IComponent& comp) {
-  std::cout << comp.operation() << "\n";
-}
-}  // namespace client
-
 void run() {
-  std::cout << "\n\nProblem\n";
-  IComponent* simple = new ConcreteComponent;
-  client::clientCode(*simple);
+  // [P1]
+  // If you have 3 features , e.g FeatureC -> many combinations
+  // If you have 5 features -> 32 subclasses
+  LOG("Problem");
+  std::unique_ptr<IComponent> simple = std::make_unique<ConcreteComponent>();
+  client_code(simple.get());
 
-  IComponent* with_a = new ComponentWithA;
-  client::clientCode(*with_a);
+  std::unique_ptr<IComponent> with_a = std::make_unique<ComponentWithA>();
+  client_code(with_a.get());
 
-  IComponent* with_b = new ComponentWithB;
-  client::clientCode(*with_b);
+  std::unique_ptr<IComponent> with_b = std::make_unique<ComponentWithB>();
+  client_code(with_b.get());
 
-  IComponent* with_ab = new ComponentWithAandB;
-  client::clientCode(*with_ab);
-
-  delete simple;
-  delete with_a;
-  delete with_b;
-  delete with_ab;
+  std::unique_ptr<IComponent> with_ab = std::make_unique<ComponentWithAandB>();
+  client_code(with_ab.get());
 }
-
 }  // namespace problem
 
 namespace decorator_pattern {
-class IComponent {
- public:
-  virtual ~IComponent() = default;
-  virtual std::string operation() const = 0;
-};
-
-/**
- * Concrete Component
- * - is a class of objects being wrapped.
- * - defines the basic behavior, which can be altered by decorators.
- */
+/// @class Concrete Component
 class ConcreteComponent : public IComponent {
  public:
   std::string operation() const override { return "ConcreteComponent"; }
 };
 
-/**
- * The base Decorator class follows the same interface as the other components.
- * - has a field for referencing a wrapped object.
- * - the field’s type should be declared as the component interface so it can
- * contain both concrete components and decorators.
- * - the base decorator delegates all operations to the wrapped object.
- */
+/// @class Base Decorator
 class BaseDecorator : public IComponent {
  protected:
-  IComponent* component_;
+  std::unique_ptr<IComponent> component_;
 
  public:
-  explicit BaseDecorator(IComponent* component) : component_{component} {}
+  explicit BaseDecorator(std::unique_ptr<IComponent> component)
+      : component_(std::move(component)) {}
 
-  /**
-   * The Decorator delegates all work to the wrapped component.
-   */
+  /// the Decorator delegates all work to the wrapped componentx
   std::string operation() const override { return component_->operation(); }
 };
 
-/**
- * Concrete Decorators :
- * - call the wrapped object and alter its result in some way.
- * - define extra behaviors that can be added to components dynamically.
- * - override methods of the base decorator and execute their behavior either
- * before or after calling the parent method.
- */
+/// @class Concrete Decorator
 class ConcreteDecoratorA : public BaseDecorator {
  public:
-  explicit ConcreteDecoratorA(IComponent* component)
-      : BaseDecorator{component} {}
+  explicit ConcreteDecoratorA(std::unique_ptr<IComponent> component)
+      : BaseDecorator(std::move(component)) {}
 
   std::string operation() const override {
     return BaseDecorator::operation() + " + FeatureA";
@@ -132,8 +95,8 @@ class ConcreteDecoratorA : public BaseDecorator {
 
 class ConcreteDecoratorB : public BaseDecorator {
  public:
-  explicit ConcreteDecoratorB(IComponent* component)
-      : BaseDecorator{component} {}
+  explicit ConcreteDecoratorB(std::unique_ptr<IComponent> component)
+      : BaseDecorator(std::move(component)) {}
 
   std::string operation() const override {
     return BaseDecorator::operation() + " + FeatureB";
@@ -142,48 +105,30 @@ class ConcreteDecoratorB : public BaseDecorator {
 
 class ConcreteDecoratorC : public BaseDecorator {
  public:
-  explicit ConcreteDecoratorC(IComponent* component)
-      : BaseDecorator{component} {}
+  explicit ConcreteDecoratorC(std::unique_ptr<IComponent> component)
+      : BaseDecorator(std::move(component)) {}
 
   std::string operation() const override {
     return BaseDecorator::operation() + " + FeatureC";
   }
 };
 
-namespace client {
-void clientCode(const IComponent& comp) {
-  std::cout << comp.operation() << "\n";
-}
-}  // namespace client
-
 void run() {
-  std::cout << "\n\nDecorator\n";
-  IComponent* simple = new ConcreteComponent;
-  client::clientCode(*simple);
+  LOG("Decorator");
+  std::unique_ptr<IComponent> simple = std::make_unique<ConcreteComponent>();
+  client_code(simple.get());
 
-  IComponent* with_a = new ConcreteDecoratorA(simple);
-  client::clientCode(*with_a);
-
-  IComponent* with_b = new ConcreteDecoratorB(simple);
-  client::clientCode(*with_b);
-
-  IComponent* with_ab = new ConcreteDecoratorB(with_a);
-  client::clientCode(*with_ab);
-
-  IComponent* with_abc = new ConcreteDecoratorC(with_ab);
-  client::clientCode(*with_abc);
-
-  delete simple;
-  delete with_a;
-  delete with_b;
-  delete with_ab;
-  delete with_abc;
+  std::unique_ptr<IComponent> with_a =
+      std::make_unique<ConcreteDecoratorA>(std::move(simple));
+  std::unique_ptr<IComponent> with_ab =
+      std::make_unique<ConcreteDecoratorB>(std::move(with_a));
+  std::unique_ptr<IComponent> with_abc =
+      std::make_unique<ConcreteDecoratorC>(std::move(with_ab));
+  client_code(with_abc.get());
 }
 }  // namespace decorator_pattern
 
 }  // namespace
-
-#include "ExampleRegistry.h"
 
 class DecoratorExample : public IExample {
  public:
