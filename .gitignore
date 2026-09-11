@@ -9,3 +9,4 @@ coverage_lcov
 !.vscode/tasks.json
 .cache
 __pycache__/
+*Testing*

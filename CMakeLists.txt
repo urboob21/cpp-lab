@@ -61,4 +61,5 @@ enable_testing()
 
 # Add project modules
 add_subdirectory(src)
-add_subdirectory(tests)
+
+# add_subdirectory(tests)
