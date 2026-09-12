@@ -5,7 +5,7 @@
 
 class DisplayWidget : public Gtk::Box, public IObserver {
  public:
-  DisplayWidget(const std::string& title, const std::string& color,
+  DisplayWidget(const std::string& title, std::string color,
                 const std::string& startData);
 
   void onDataChanged(const std::string& newData) override;

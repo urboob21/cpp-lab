@@ -30,8 +30,8 @@ void maxAndMinHeap() {
   const std::vector<int> values{5, 1, 8, 3, 9, 2};
 
   std::priority_queue<int> max_heap(values.begin(), values.end());
-  std::priority_queue<int, std::vector<int>, std::greater<>> min_heap(values.begin(),
-                                                                      values.end());
+  std::priority_queue<int, std::vector<int>, std::greater<>> min_heap(
+      values.begin(), values.end());
 
   std::string max_order;
   std::string min_order;
@@ -65,14 +65,16 @@ void customComparator() {
   tasks.push({"code review", 5});
 
   while (!tasks.empty()) {
-    LOG_S("serve '" << tasks.top().name << "' (priority " << tasks.top().priority << ")");
+    LOG_S("serve '" << tasks.top().name << "' (priority "
+                    << tasks.top().priority << ")");
     tasks.pop();
   }
 }
 
 }  // namespace
 
-LAB_EXAMPLE("PriorityQueue", "std::priority_queue: max-heap, min-heap, custom priority") {
+LAB_EXAMPLE("PriorityQueue",
+            "std::priority_queue: max-heap, min-heap, custom priority") {
   maxAndMinHeap();
   customComparator();
 }

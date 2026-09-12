@@ -15,9 +15,9 @@ namespace {
 
 std::string toLower(std::string_view text) {
   std::string lower(text);
-  std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) {
-    return static_cast<char>(std::tolower(c));
-  });
+  std::transform(
+      lower.begin(), lower.end(), lower.begin(),
+      [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
   return lower;
 }
 
@@ -59,14 +59,14 @@ std::string relativeSourcePath(std::string_view file,
     if (root.back() != '/') {
       root.push_back('/');
     }
-    if (path.rfind(root, 0) == 0) {
+    if (path.starts_with(root)) {
       return path.substr(root.size());
     }
   }
 
   // Fallback when __FILE__ is not below the root (e.g. relative paths):
   // keep everything from the last "src/" directory on.
-  if (path.rfind("src/", 0) == 0) {
+  if (path.starts_with("src/")) {
     return path;
   }
   if (const auto pos = path.rfind("/src/"); pos != std::string::npos) {
@@ -77,7 +77,7 @@ std::string relativeSourcePath(std::string_view file,
 
 std::string groupFromSourcePath(std::string_view relative_path) {
   std::string_view path = relative_path;
-  if (path.rfind("src/", 0) == 0) {
+  if (path.starts_with("src/")) {
     path.remove_prefix(4);
   }
   const auto slash = path.rfind('/');
@@ -120,11 +120,11 @@ bool Registry::add(std::string_view file, std::string_view name,
     return false;
   }
 
-  const auto position = std::lower_bound(
-      examples_.begin(), examples_.end(), example.id,
-      [](const Example& existing, const std::string& id) {
-        return lessIgnoreCase(existing.id, id);
-      });
+  const auto position =
+      std::lower_bound(examples_.begin(), examples_.end(), example.id,
+                       [](const Example& existing, const std::string& id) {
+                         return lessIgnoreCase(existing.id, id);
+                       });
   if (position != examples_.end() &&
       equalIgnoreCase(position->id, example.id)) {
     errors_.push_back("duplicate example id '" + example.id + "' in " +

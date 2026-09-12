@@ -53,16 +53,16 @@ Logger& Logger::instance() {
 }
 
 Logger::Logger()
-    : show_location_{kShowLocationByDefault}, use_color_{stdoutSupportsColor()} {}
+    : show_location_{kShowLocationByDefault},
+      use_color_{stdoutSupportsColor()} {}
 
-void Logger::log(std::string_view message,
-                 const std::source_location& location) {
-  write(message, location, /*with_function=*/true);
+void Logger::log(std::string_view message, const std::source_location& loc) {
+  write(message, loc, /*with_function=*/true);
 }
 
-void Logger::logFunction(const std::source_location& location) {
+void Logger::logFunction(const std::source_location& loc) {
   // The function name is the message, so it is not repeated in the prefix.
-  write(location.function_name(), location, /*with_function=*/false);
+  write(loc.function_name(), loc, /*with_function=*/false);
 }
 
 void Logger::section(std::string_view title) {
@@ -83,18 +83,18 @@ void Logger::section(std::string_view title) {
   }
 }
 
-void Logger::write(std::string_view message,
-                   const std::source_location& location, bool with_function) {
+void Logger::write(std::string_view message, const std::source_location& loc,
+                   bool with_function) {
   if (!message.empty() && message.back() == '\n') {
     message.remove_suffix(1);
   }
 
   const std::lock_guard<std::mutex> lock(mutex_);
   if (show_location_) {
-    std::cout << '[' << currentTime() << "][" << fileName(location.file_name())
-              << ':' << location.line() << ']';
+    std::cout << '[' << currentTime() << "][" << fileName(loc.file_name())
+              << ':' << loc.line() << ']';
     if (with_function) {
-      std::cout << '[' << location.function_name() << ']';
+      std::cout << '[' << loc.function_name() << ']';
     }
     std::cout << ' ';
   }

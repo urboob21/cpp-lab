@@ -8,9 +8,9 @@ namespace {
 
 std::string toLower(std::string_view text) {
   std::string lower(text);
-  std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) {
-    return static_cast<char>(std::tolower(c));
-  });
+  std::transform(
+      lower.begin(), lower.end(), lower.begin(),
+      [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
   return lower;
 }
 
@@ -55,25 +55,26 @@ ParseResult parseCommandLine(const std::vector<std::string_view>& args) {
 
     // Support both "--run id" and "--run=id".
     std::optional<std::string_view> inline_value;
-    if (option.rfind("--", 0) == 0) {
-      if (const auto equals = option.find('='); equals != option.npos) {
+    if (option.starts_with("--")) {
+      if (const auto equals = option.find('=');
+          equals != std::string_view::npos) {
         inline_value = option.substr(equals + 1);
         option = option.substr(0, equals);
       }
     }
 
     // Returns the value that follows the option, if there is one.
-    auto takeValue = [&]() -> std::optional<std::string_view> {
+    auto take_value = [&]() -> std::optional<std::string_view> {
       if (inline_value) {
         return inline_value;
       }
-      if (i + 1 < args.size() && args[i + 1].rfind('-', 0) != 0) {
+      if (i + 1 < args.size() && !args[i + 1].starts_with('-')) {
         return args[++i];
       }
       return std::nullopt;
     };
 
-    auto setCommand = [&](Command command) {
+    auto set_command = [&](Command command) {
       if (command_given) {
         return false;
       }
@@ -81,17 +82,17 @@ ParseResult parseCommandLine(const std::vector<std::string_view>& args) {
       command_given = true;
       return true;
     };
-    const std::string kOneCommand =
+    const std::string one_command_error =
         "only one of --list, --list-ids, --run, --run-all, --help and "
         "--version can be used at a time";
 
     if (option == "-h" || option == "--help") {
-      if (!setCommand(Command::kHelp)) {
-        return failure(kOneCommand);
+      if (!set_command(Command::kHelp)) {
+        return failure(one_command_error);
       }
     } else if (option == "-v" || option == "--version") {
-      if (!setCommand(Command::kVersion)) {
-        return failure(kOneCommand);
+      if (!set_command(Command::kVersion)) {
+        return failure(one_command_error);
       }
     } else if (option == "-l" || option == "--list" || option == "--list-ids" ||
                option == "-a" || option == "--run-all") {
@@ -101,17 +102,17 @@ ParseResult parseCommandLine(const std::vector<std::string_view>& args) {
       } else if (option == "--list-ids") {
         command = Command::kListIds;
       }
-      if (!setCommand(command)) {
-        return failure(kOneCommand);
+      if (!set_command(command)) {
+        return failure(one_command_error);
       }
-      if (auto value = takeValue()) {
+      if (auto value = take_value()) {
         cli.argument = std::string(*value);
       }
     } else if (option == "-r" || option == "--run") {
-      if (!setCommand(Command::kRun)) {
-        return failure(kOneCommand);
+      if (!set_command(Command::kRun)) {
+        return failure(one_command_error);
       }
-      auto value = takeValue();
+      auto value = take_value();
       if (!value || value->empty()) {
         return failure("--run needs an example id or filter");
       }
@@ -119,7 +120,7 @@ ParseResult parseCommandLine(const std::vector<std::string_view>& args) {
     } else if (option == "--plain") {
       cli.plain = true;
     } else if (option == "--mode" || option == "-mode") {
-      auto value = takeValue();
+      auto value = take_value();
       if (!value) {
         return failure("--mode needs a value: dev, uat or prod");
       }

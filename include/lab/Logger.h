@@ -22,13 +22,12 @@ class Logger {
 
   /// Prints one line. A single trailing '\n' in `message` is dropped.
   void log(std::string_view message,
-           const std::source_location& location =
-               std::source_location::current());
+           const std::source_location& loc = std::source_location::current());
 
   /// Prints the full signature of the calling function. Handy to see which
   /// overload, constructor or operator the compiler picked.
-  void logFunction(const std::source_location& location =
-                       std::source_location::current());
+  void logFunction(
+      const std::source_location& loc = std::source_location::current());
 
   /// Prints a visual separator: "--- title -----------".
   void section(std::string_view title);
@@ -39,7 +38,7 @@ class Logger {
 
  private:
   Logger();
-  void write(std::string_view message, const std::source_location& location,
+  void write(std::string_view message, const std::source_location& loc,
              bool with_function);
 
   std::mutex mutex_;
@@ -53,10 +52,10 @@ class Logger {
 #define LOG(message) ::lab::Logger::instance().log(message)
 
 /// LOG_S("x = " << x) - log anything that can be streamed into std::ostream.
-#define LOG_S(...)                                   \
-  do {                                               \
-    std::ostringstream lab_log_stream_;              \
-    lab_log_stream_ << __VA_ARGS__;                  \
+#define LOG_S(...)                                        \
+  do {                                                    \
+    std::ostringstream lab_log_stream_;                   \
+    lab_log_stream_ << __VA_ARGS__;                       \
     ::lab::Logger::instance().log(lab_log_stream_.str()); \
   } while (false)
 

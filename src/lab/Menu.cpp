@@ -26,9 +26,9 @@ struct MenuNode {
 };
 
 MenuNode& childNamed(MenuNode& parent, const std::string& name) {
-  const auto it =
-      std::find_if(parent.children.begin(), parent.children.end(),
-                   [&name](const MenuNode& child) { return child.name == name; });
+  const auto it = std::find_if(
+      parent.children.begin(), parent.children.end(),
+      [&name](const MenuNode& child) { return child.name == name; });
   if (it != parent.children.end()) {
     return *it;
   }
@@ -40,8 +40,9 @@ MenuNode& childNamed(MenuNode& parent, const std::string& name) {
 }
 
 void sortChildren(MenuNode& node) {
-  std::sort(node.children.begin(), node.children.end(),
-            [](const MenuNode& a, const MenuNode& b) { return a.name < b.name; });
+  std::sort(
+      node.children.begin(), node.children.end(),
+      [](const MenuNode& a, const MenuNode& b) { return a.name < b.name; });
   for (MenuNode& child : node.children) {
     sortChildren(child);
   }
@@ -109,14 +110,13 @@ void printNode(const MenuNode& node, bool is_root, std::ostream& out) {
 
   std::size_t index = 1;
   for (const MenuNode& child : node.children) {
-    out << std::setw(4) << index++ << ". " << std::left
-        << std::setw(kNameWidth) << (child.name + "/") << std::right << ' '
-        << countLabel(child.total) << '\n';
+    out << std::setw(4) << index++ << ". " << std::left << std::setw(kNameWidth)
+        << (child.name + "/") << std::right << ' ' << countLabel(child.total)
+        << '\n';
   }
   for (const Example* example : node.examples) {
-    out << std::setw(4) << index++ << ". " << std::left
-        << std::setw(kNameWidth) << example->name << std::right << ' '
-        << example->description
+    out << std::setw(4) << index++ << ". " << std::left << std::setw(kNameWidth)
+        << example->name << std::right << ' ' << example->description
         << (example->isInteractive() ? "  [interactive]" : "") << '\n';
   }
   out << rule << '\n'

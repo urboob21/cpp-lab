@@ -41,12 +41,15 @@ void run() {
   net::TCPClient client{"127.0.0.1", server.boundPort()};
   if (client.connect()) {
     LOG_S("client got: " << trimmed(client.receive()));
-    for (const std::string message : {"hello", "sockets are file descriptors", "Q"}) {
+    for (const std::string message :
+         {"hello", "sockets are file descriptors", "Q"}) {
       client.send(message + "\n");
-      LOG_S("client sent \"" << message << "\", echo: \"" << trimmed(client.receive()) << '"');
+      LOG_S("client sent \"" << message << "\", echo: \""
+                             << trimmed(client.receive()) << '"');
     }
     const std::string after_quit = client.receive();
-    LOG_S("after Q the server closed the connection: " << std::boolalpha << after_quit.empty());
+    LOG_S("after Q the server closed the connection: " << std::boolalpha
+                                                       << after_quit.empty());
   }
 
   LOG_SECTION("Stopping the server");
@@ -56,6 +59,7 @@ void run() {
 
 }  // namespace
 
-LAB_EXAMPLE("LoopbackEcho", "TCP server thread and client in one process over 127.0.0.1") {
+LAB_EXAMPLE("LoopbackEcho",
+            "TCP server thread and client in one process over 127.0.0.1") {
   run();
 }

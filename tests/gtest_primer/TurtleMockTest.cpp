@@ -37,7 +37,8 @@ TEST(MockPainterTest, PenGoesDownBeforeMovingAndUpAtTheEnd) {
   const Painter painter{turtle};
 
   {
-    const InSequence in_order;  // the following expectations must happen in this order
+    // The expectations below must happen in this order.
+    const InSequence in_order;
     EXPECT_CALL(turtle, PenDown());
     EXPECT_CALL(turtle, Forward(10)).Times(4);
     EXPECT_CALL(turtle, PenUp());

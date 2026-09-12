@@ -21,7 +21,8 @@ TEST(CalculatorAddTest, AddsPositiveAndNegativeNumbers) {
   EXPECT_EQ(calculator.lastResult(), 3);
 
   calculator.add(4, -6);
-  EXPECT_EQ(calculator.lastResult(), -2) << "a custom message explains a failure";
+  EXPECT_EQ(calculator.lastResult(), -2)
+      << "a custom message explains a failure";
 
   calculator.add(-4, -6);
   EXPECT_EQ(calculator.lastResult(), -10);
@@ -48,7 +49,8 @@ TEST_F(CalculatorDivideTest, DivisionByZeroFailsAndResetsTheResult) {
 }
 
 // TEST_P - one test body, many inputs.
-class CalculatorMultiplyTest : public testing::TestWithParam<std::tuple<int, int, int>> {};
+class CalculatorMultiplyTest
+    : public testing::TestWithParam<std::tuple<int, int, int>> {};
 
 TEST_P(CalculatorMultiplyTest, MultipliesTwoNumbers) {
   const auto [lhs, rhs, expected] = GetParam();
@@ -58,7 +60,8 @@ TEST_P(CalculatorMultiplyTest, MultipliesTwoNumbers) {
 }
 
 INSTANTIATE_TEST_SUITE_P(Values, CalculatorMultiplyTest,
-                         testing::Values(std::make_tuple(2, 3, 6), std::make_tuple(-2, 3, -6),
+                         testing::Values(std::make_tuple(2, 3, 6),
+                                         std::make_tuple(-2, 3, -6),
                                          std::make_tuple(0, 99, 0),
                                          std::make_tuple(-4, -5, 20)));
 

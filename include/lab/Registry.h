@@ -18,10 +18,13 @@ enum ExampleFlags : unsigned {
 using ExampleFunction = void (*)();
 
 /// Metadata and entry point of one runnable example.
+///
+/// For LAB_EXAMPLE("Weak", ...) in src/core/smart_pointer/Weak.cpp the registry
+/// derives group = "core/smart_pointer" and id = "core/smart_pointer/Weak".
 struct Example {
-  std::string id;           ///< "<group>/<name>", e.g. "core/smart_pointer/Weak"
-  std::string group;        ///< source directory below src/, e.g. "core/smart_pointer"
-  std::string name;         ///< short name shown in the menu, e.g. "Weak"
+  std::string id;           ///< unique "<group>/<name>" identifier
+  std::string group;        ///< source directory below src/
+  std::string name;         ///< short name shown in the menu
   std::string description;  ///< one-line summary
   std::string source;       ///< path relative to the repository root
   ExampleFunction run{nullptr};

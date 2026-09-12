@@ -1,9 +1,11 @@
 #include "DisplayWidget.h"
 
-DisplayWidget::DisplayWidget(const std::string& title, const std::string& color,
+#include <utility>
+
+DisplayWidget::DisplayWidget(const std::string& title, std::string color,
                              const std::string& startData)
     : Gtk::Box(Gtk::Orientation::VERTICAL),
-      color_(color),
+      color_(std::move(color)),
       innerBox_(Gtk::Orientation::VERTICAL) {
   frame_.set_label(title);
   frame_.set_margin(10);

@@ -37,7 +37,8 @@ TEST(CommandLineTest, RunRequiresAnId) {
   EXPECT_EQ(result.value->argument, "core/smart_pointer/Weak");
 
   EXPECT_FALSE(parse({"--run"}).value.has_value());
-  EXPECT_FALSE(parse({"--run", "--plain"}).value.has_value());  // an option is not an id
+  EXPECT_FALSE(
+      parse({"--run", "--plain"}).value.has_value());  // an option is not an id
 }
 
 TEST(CommandLineTest, SupportsEqualsSyntax) {
@@ -75,7 +76,8 @@ TEST(CommandLineTest, LegacySingleDashModeStillWorks) {
 }
 
 TEST(AppModeTest, RoundTripsThroughStrings) {
-  for (const lab::AppMode mode : {lab::AppMode::kDev, lab::AppMode::kUat, lab::AppMode::kProd}) {
+  for (const lab::AppMode mode :
+       {lab::AppMode::kDev, lab::AppMode::kUat, lab::AppMode::kProd}) {
     const auto parsed = lab::parseAppMode(lab::toString(mode));
     ASSERT_TRUE(parsed.has_value());
     EXPECT_EQ(*parsed, mode);
@@ -84,8 +86,8 @@ TEST(AppModeTest, RoundTripsThroughStrings) {
 
 TEST(UsageTest, MentionsEveryCommand) {
   const std::string text = lab::usage("cpp_lab_project");
-  for (const char* option : {"--list", "--run", "--run-all", "--list-ids", "--plain", "--mode",
-                             "--version", "--help"}) {
+  for (const char* option : {"--list", "--run", "--run-all", "--list-ids",
+                             "--plain", "--mode", "--version", "--help"}) {
     EXPECT_NE(text.find(option), std::string::npos) << option;
   }
 }
