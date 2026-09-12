@@ -86,7 +86,10 @@ clang-tidy -p build $(git ls-files 'src/*.cpp')     # configured by .clang-tidy,
   errors. Intentional findings (teaching demos) are listed in `.cppcheck-suppressions`; note that a
   line containing only `#` breaks that file.
 - `.clang-format` is Google-based with `Standard: c++20`. Do not set it back to `c++11`: the
-  formatter then mangles digit separators such as `1'000'000`.
+  formatter then mangles digit separators such as `1'000'000` and splits `operator<=>`.
+- `.clang-tidy` has `WarningsAsErrors: "*"`, and its `Checks:` value is a YAML folded scalar, so
+  it cannot contain comments - a `#` inside the list silently becomes part of a check name.
+  Explanations therefore live in the comment block above it.
 - Naming (`.clang-tidy`): `lower_case` variables and namespaces, `CamelCase` types, trailing `_` on
   private members, `kName` for constants.
 
