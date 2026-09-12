@@ -19,14 +19,14 @@ static void func_internal() {
 }
 
 // 2. const and constexpr variables at namespace scope are internal by default.
-const int c_internal{100};
-constexpr int ce_internal{200};
+const int kConstInternal{100};
+constexpr int kConstexprInternal{200};
 
 /// External linkage on purpose: the one door into this file (see Linkage.cpp).
 void printInternals() {
   func_internal();
-  LOG_S("g_internal = " << g_internal << ", c_internal = " << c_internal
-                        << ", ce_internal = " << ce_internal
+  LOG_S("g_internal = " << g_internal << ", kConstInternal = " << kConstInternal
+                        << ", kConstexprInternal = " << kConstexprInternal
                         << ", ns_internal = " << ns_internal);
 }
 

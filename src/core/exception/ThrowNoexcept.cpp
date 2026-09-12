@@ -66,14 +66,14 @@ struct Counters {
   int moves = 0;
 };
 
-template <bool kNoexceptMove>
+template <bool IsNoexceptMove>
 class Element {
  public:
   explicit Element(Counters& counters) : counters_{&counters} {}
   Element(const Element& other) : counters_{other.counters_} {
     ++counters_->copies;
   }
-  Element(Element&& other) noexcept(kNoexceptMove)
+  Element(Element&& other) noexcept(IsNoexceptMove)
       : counters_{other.counters_} {
     ++counters_->moves;
   }
@@ -85,10 +85,10 @@ class Element {
   Counters* counters_;
 };
 
-template <bool kNoexceptMove>
+template <bool IsNoexceptMove>
 Counters growVector() {
   Counters counters;
-  std::vector<Element<kNoexceptMove>> elements;
+  std::vector<Element<IsNoexceptMove>> elements;
   for (int i = 0; i < 100; ++i) {
     // NOLINTNEXTLINE(performance-inefficient-vector-operation): no reserve on purpose
     elements.emplace_back(counters);  // reallocates several times
