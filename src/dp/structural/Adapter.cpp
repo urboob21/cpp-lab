@@ -21,6 +21,7 @@
 // UML: docs/uml/dp/structural_adapter.drawio.svg
 // -----------------------------------------------------------------------------
 
+#include <cmath>
 #include <memory>
 #include <string>
 #include <utility>
@@ -116,7 +117,7 @@ class PayPalAdapter : public PaymentProcessor {
   bool pay(const std::string& customer, double amount_eur) override {
     const std::string email =
         customer + "@example.com";  // look up the PayPal account
-    const auto cents = static_cast<long>(amount_eur * 100.0 + 0.5);
+    const auto cents = std::lround(amount_eur * 100.0);
     return sdk_.sendPayment(email, cents, "EUR") == 0;
   }
 

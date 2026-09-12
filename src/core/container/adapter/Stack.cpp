@@ -48,7 +48,12 @@ bool isBalanced(const std::string& text) {
     if (c == '(' || c == '[' || c == '{') {
       open.push(c);
     } else if (c == ')' || c == ']' || c == '}') {
-      const char expected = c == ')' ? '(' : (c == ']' ? '[' : '{');
+      char expected = '(';
+      if (c == ']') {
+        expected = '[';
+      } else if (c == '}') {
+        expected = '{';
+      }
       if (open.empty() || open.top() != expected) {
         return false;
       }

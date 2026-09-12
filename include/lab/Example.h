@@ -46,12 +46,14 @@ constexpr unsigned flags(unsigned value) noexcept {
 #define LAB_DETAIL_CONCAT_IMPL(a, b) a##b
 #define LAB_DETAIL_CONCAT(a, b) LAB_DETAIL_CONCAT_IMPL(a, b)
 
-#define LAB_EXAMPLE(name, description, ...)                               \
+#define LAB_EXAMPLE(name, description, ...)                              \
   LAB_DETAIL_EXAMPLE(LAB_DETAIL_CONCAT(lab_example_, __COUNTER__), name, \
                      description, ::lab::detail::flags(__VA_ARGS__))
 
-#define LAB_DETAIL_EXAMPLE(function, name, description, flags)                    \
-  static void function();                                                         \
-  [[maybe_unused]] static const bool LAB_DETAIL_CONCAT(function, _registered) =   \
-      ::lab::Registry::instance().add(__FILE__, name, description, &function, flags); \
+#define LAB_DETAIL_EXAMPLE(function, name, description, flags)         \
+  static void function();                                              \
+  [[maybe_unused]] static const bool LAB_DETAIL_CONCAT(function,       \
+                                                       _registered) =  \
+      ::lab::Registry::instance().add(__FILE__, (name), (description), \
+                                      &(function), (flags));           \
   static void function()

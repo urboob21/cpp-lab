@@ -57,7 +57,7 @@ void basics() {
   const Resource* observer = owner.get();  // non-owning raw pointer
   LOG_S("  get() -> " << observer->name());
 
-  owner.reset(new Resource("C"));   // deletes B, now owns C
+  owner = std::make_unique<Resource>("C");  // deletes B, now owns C
   Resource* raw = owner.release();  // gives up ownership WITHOUT deleting
   LOG_S("  after release(): owner is " << (owner ? "set" : "empty")
                                        << ", raw points to " << raw->name());

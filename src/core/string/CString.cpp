@@ -44,6 +44,7 @@ void create() {
   //   pointer (stack) -> 0x4030...: 't' 'h' 'i' 's' ... '\0' (read-only data)
   const char* pointer = "this is a string literal";
   logString("pointer", pointer,
+            // NOLINTNEXTLINE(bugprone-sizeof-expression): the lesson
             sizeof(pointer));  // sizeof gives the POINTER size!
   // pointer[0] = 'T';  // error (and undefined behavior without the const)
 
@@ -74,8 +75,17 @@ void concatenate() {
   std::strcat(destination, " !!");
   logString("strcat", destination, sizeof(destination));
 
-  std::strncat(destination, "1234",
-               3);  // appends at most 3 chars, always adds '\0'
+  // Appends at most 3 characters and always adds '\0'. The source is longer,
+  // so the result is truncated - GCC points that out with -Wstringop-truncation
+  // when optimizations are on, which is exactly the lesson here.
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
+#endif
+  std::strncat(destination, "1234", 3);
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
   logString("strncat(3)", destination, sizeof(destination));
 }
 

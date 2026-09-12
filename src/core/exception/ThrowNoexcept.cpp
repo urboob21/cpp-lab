@@ -90,6 +90,7 @@ Counters growVector() {
   Counters counters;
   std::vector<Element<kNoexceptMove>> elements;
   for (int i = 0; i < 100; ++i) {
+    // NOLINTNEXTLINE(performance-inefficient-vector-operation): no reserve on purpose
     elements.emplace_back(counters);  // reallocates several times
   }
   return counters;

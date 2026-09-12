@@ -1,5 +1,26 @@
 ---
 # Configure clang-tidy for this project.
+#
+# cpp-lab is a teaching repository. Examples deliberately show the "before"
+# version of a pattern, copy objects so a constructor call becomes visible, read
+# moved-from objects to show what happens, and spell types out instead of using
+# auto. The following checks fight exactly that and are therefore disabled at
+# the end of the Checks list, although they stay valuable in production code
+# (note: the Checks list is a YAML folded scalar, so it cannot hold comments):
+#
+#   -misc-use-anonymous-namespace                 LAB_EXAMPLE declares a static function
+#   -readability-convert-member-functions-to-static
+#   -performance-unnecessary-copy-initialization  copies are made on purpose
+#   -performance-unnecessary-value-param          pass-by-value is demonstrated
+#   -bugprone-use-after-move                      moved-from objects are inspected
+#   -google-runtime-int                           short/long are the subject of Fundamental
+#   -modernize-use-std-numbers                    the linkage constants are illustrations
+#   -modernize-use-auto, -modernize-loop-convert  explicit code is easier to follow here
+#   -modernize-avoid-bind                         std::bind has its own example
+#   -modernize-use-constraints                    enable_if is shown next to concepts
+#   -misc-no-recursion                            recursion is the lesson (Composite, ...)
+#   -google-build-using-namespace                 chrono literals inside one function
+#   -google-explicit-constructor                  implicit conversion has its own example
 
 # Here is an explanation for why some of the checks are disabled:
 #
@@ -77,7 +98,6 @@
 #   X update.
 Checks: >
   -*,
-  abseil-*,
   bugprone-*,
   google-*,
   misc-*,
@@ -115,7 +135,21 @@ Checks: >
   -bugprone-implicit-widening-of-multiplication-result,
   -bugprone-unchecked-optional-access,
   -bugprone-unused-local-non-trivial-variable,
-  -bugprone-unused-return-value
+  -bugprone-unused-return-value,
+  -misc-use-anonymous-namespace,
+  -readability-convert-member-functions-to-static,
+  -performance-unnecessary-copy-initialization,
+  -performance-unnecessary-value-param,
+  -bugprone-use-after-move,
+  -google-runtime-int,
+  -modernize-use-std-numbers,
+  -modernize-use-auto,
+  -modernize-loop-convert,
+  -modernize-avoid-bind,
+  -modernize-use-constraints,
+  -misc-no-recursion,
+  -google-build-using-namespace,
+  -google-explicit-constructor
 
 # Turn all the warnings from the checks above into errors.
 WarningsAsErrors: "*"

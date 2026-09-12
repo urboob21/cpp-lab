@@ -50,6 +50,7 @@ void implicitConversions() {
   const float f = 3.5F;
   const double widened = f;  // promotion: float -> double
   const bool flag = true;
+  // NOLINTNEXTLINE(readability-implicit-bool-conversion): the conversion is the point
   const int from_bool = flag;  // true -> 1
   LOG_S("'A' -> " << promoted << ", 3.5F -> " << widened << ", true -> "
                   << from_bool);

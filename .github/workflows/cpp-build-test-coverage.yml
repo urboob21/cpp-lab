@@ -103,6 +103,26 @@ jobs:
       #   run: |
       #       clang-tidy -p build -header-filter='^src/.*' $(find src -name "*.cpp")
 
+  release:
+    # ---------------------------------------------------------
+    # A Release build with warnings as errors: optimizations enable extra
+    # compiler diagnostics that a Debug build never reports.
+    # ---------------------------------------------------------
+    runs-on: ubuntu-24.04
+    container:
+      image: urboob21/cpp-lab:latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Build and test in Release
+        run: |
+          cmake -S . -B build-release -DCMAKE_BUILD_TYPE=Release \
+                -DCPPLAB_WARNINGS_AS_ERRORS=ON -DCPPLAB_BUILD_GUI=OFF
+          cmake --build build-release -j "$(nproc)"
+          ctest --test-dir build-release --output-on-failure -j "$(nproc)"
+
   sanitizers:
     # ---------------------------------------------------------
     # Same tests with AddressSanitizer + UndefinedBehaviorSanitizer:

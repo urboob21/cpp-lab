@@ -137,7 +137,10 @@ class HttpRequest {
   std::string describe() const {
     std::string text = method_ + " " + url_;
     for (const auto& [name, value] : headers_) {
-      text += "\n      " + name + ": " + value;
+      text += "\n      ";
+      text += name;
+      text += ": ";
+      text += value;
     }
     if (!body_.empty()) {
       text += "\n      body: " + body_;
@@ -173,7 +176,7 @@ class HttpRequest::Builder {
 
   /// Validates before handing out the product.
   HttpRequest build() const {
-    if (request_.url_.rfind("http", 0) != 0) {
+    if (!request_.url_.starts_with("http")) {
       throw std::invalid_argument("URL must start with http: " + request_.url_);
     }
     if (request_.method_ == "GET" && !request_.body_.empty()) {
