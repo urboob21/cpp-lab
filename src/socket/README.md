@@ -51,6 +51,7 @@ The classes are `net::TCPServer` and `net::TCPClient` in `simple_tcp/`.
   - Each packet is sent independently.
 
 - Sending data typically works like this:
+
 ```
   1. Build a packet (datagram)
   2. Add a UDP header
@@ -85,6 +86,7 @@ The classes are `net::TCPServer` and `net::TCPClient` in `simple_tcp/`.
     - e.g. 2001:db8:85a3::8a2e:370:7334
 - **Real-world examples**
 To get your IPAddress:
+
 ```bash
 #linux
 ip addr
@@ -125,6 +127,7 @@ The User Datagram Protocol, or UDP, is another widely used transport protocol. I
 
 - **Real-world examples**
 Ping localhost
+
 ```bash
 # ping
 ping 127.0.0.1
@@ -145,6 +148,7 @@ telnet localhost 8080
   - **1024 to 49151** – Registered ports; meaning they can be registered to specific protocols by software corporations.
   - **49152 to 65536** – Dynamic or private ports; meaning that they can be used by just about anybody.
 - **Examples**
+
 ```bash
 22   → SSH  
 25   → SMTP  
@@ -162,8 +166,8 @@ https://example.com:443 -> This connects to the **HTTPS service** on port **443*
 - This process is called **DNS resolution**.
 - For example, a hostname such as: `www.example.com` may be translated into an IP address such as: `93.184.216.34`
 
-- **Examples**
-Queries DNS servers and returns the IP address of the domain."
+- **Examples**: query a DNS server and print the IP address of a domain.
+
 ```bash
 nslookup google.com
 dig google.com
@@ -187,6 +191,7 @@ HTTP follows a **client–server model**:
     4. The server returns an **HTTP response** containing the requested resource.
 
 - **Example**:
+
 ```bash
 # When you open:
 https://google.com
@@ -215,6 +220,7 @@ Content-Length: 1024
 **1.1. HTTP Request**
 - Sent by the client to request a resource.
 - Structure:
+
 ```bash
 Method  
 Headers  
@@ -234,6 +240,7 @@ Content-Type: application/json
 Sent by the server to return the result.
 
 Structure:
+
 ```bash
 Status line  
 Headers  
@@ -250,6 +257,7 @@ Content-Type: text/html
 
 **2. HTTP Headers:**
 - HTTP headers provide **additional information about the request or response**.
+
 ```bash
 Host  
 User-Agent  
@@ -307,6 +315,7 @@ IP: 93.184.216.34
 Port: 80 (HTTP) or 443 (HTTPS).
 -> 2. The browser sends an HTTP request.
 -> 3. The server sends back the HTML page.
+
 ```
 Browser (Client)  --->  Web Server
       socket           listening socket
@@ -324,6 +333,7 @@ o	`Connect`: Actively attempt to establish a connection
 o	`Send`: Send some data over a connection
 o	`Receive`: Receive some data over a connection
 o	`Close`: Release the connection
+
 ```cpp
 //  start()
 //  ├── createSocket()

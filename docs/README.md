@@ -6,6 +6,7 @@ topic, and the examples next to it show it in code. Run any example with
 
 - [Learning path](learning-path.md): a suggested order through the examples
 - [Adding examples](adding-examples.md): how the lab works and how to add your own examples
+- [API documentation](doxygen.md): generating the Doxygen site and publishing it to Pages or the wiki
 
 ---
 ## 1. Core (C++ language and standard library)

@@ -35,11 +35,11 @@ Every `*Test.cpp` below `tests/` is compiled automatically - just add a file.
 
 ## 2. Test Fixtures: Using the Same Data Configuration for Multiple Tests
 - To create a fixture class:
-   - derive a class from `testing::Test` with protected body
-   - declare used objects
-   - write a default constructor or `Setup()` function to prepare the object for each test.
- - write a default destructor or `TearDown()` function to release resources.
- - use `TEST_F(TestFixtureClassName, TestName)` instead of `TEST()`
+   - derive a class from `testing::Test` with a protected body
+   - declare the objects the tests share
+   - write a default constructor or a `SetUp()` function to prepare them for each test
+   - write a destructor or a `TearDown()` function to release resources
+   - use `TEST_F(TestFixtureClassName, TestName)` instead of `TEST()`
 
 > All documentation is covered in the official github repo. The primer documentation also covers a lot of information regarding the test macros. You could use the following summary and the examples linked to choose what you want to use. (https://stackoverflow.com/questions/58600728/what-is-the-difference-between-test-test-f-and-test-p)
 
@@ -48,6 +48,7 @@ Every `*Test.cpp` below `tests/` is compiled automatically - just add a file.
 - **TEST_P()** is useful when you want to write tests with a parameter. Instead of writing multiple tests with different values of the parameter, you can write one test using TEST_P() which uses GetParam() and can be instantiated using INSTANTIATE_TEST_SUITE_P().
 
 - e.g.
+
 ```cpp
 #include "this/package/foo.h"
 

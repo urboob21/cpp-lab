@@ -24,6 +24,7 @@ cmake --build build -j
 ```
 
 **Project hierarchy**
+
 ```
 include/lab/   framework API: LAB_EXAMPLE, LOG..., registry, menu, runner
 src/
@@ -38,7 +39,7 @@ src/
   embedded/    bare-metal ARM example (own build script)
 tests/         GoogleTest unit tests and a gtest/gmock primer
 cmake/         CMake modules and helpers
-docs/          documentation and UML diagrams
+docs/          documentation, Doxygen config and UML diagrams
 scripts/       build, coverage and scaffolding scripts
 ```
 
@@ -142,6 +143,8 @@ use `-DCPPLAB_BUILD_TESTS=OFF` to skip it).
 | `CPPLAB_BUILD_TESTS` | `ON` | unit tests and one smoke test per example |
 | `CPPLAB_BUILD_DEMOS` | `ON` | standalone demos in `src/demo` |
 | `CPPLAB_BUILD_GUI` | `AUTO` | GTK4 apps in `src/ap`: `AUTO`, `ON`, `OFF` |
+| `CPPLAB_BUILD_DOCS` | `ON` | add the `docs` target when doxygen is installed |
+| `CPPLAB_DOCS_WARNINGS_AS_ERRORS` | `OFF` | fail the `docs` target on Doxygen warnings |
 | `CPPLAB_ENABLE_SANITIZERS` | `OFF` | AddressSanitizer + UndefinedBehaviorSanitizer |
 | `CPPLAB_WARNINGS_AS_ERRORS` | `OFF` | `-Werror` |
 | `ENABLE_COVERAGE` | `OFF` | `--coverage` for lcov/gcovr |
@@ -200,7 +203,19 @@ git ls-files '*.cpp' '*.h' | xargs clang-format -i
 Intentional findings in teaching examples are listed in `.cppcheck-suppressions`.
 
 ---
-## 8. The other programs
+## 8. API documentation (Doxygen)
+
+```bash
+sudo apt-get install doxygen graphviz     # graphviz is optional (class diagrams)
+cmake --build build --target docs         # -> build/docs/html/index.html
+```
+
+The site has the README as its front page, the guides as "Related Pages" and every source file
+browsable and cross-linked. `.github/workflows/docs.yml` regenerates it on every push and publishes
+it to GitHub Pages from `master`. Setup and the wiki recipe: [docs/doxygen.md](docs/doxygen.md).
+
+---
+## 9. The other programs
 
 | Program | Run | Documentation |
 |---|---|---|
@@ -209,7 +224,7 @@ Intentional findings in teaching examples are listed in `.cppcheck-suppressions`
 | Bare-metal ARM (QEMU) | `cd src/embedded && ./run.sh` | [src/embedded/README.md](src/embedded/README.md) |
 
 ---
-## 9. Debugging with VS Code
+## 10. Debugging with VS Code
 
 1. Install the *C/C++ Extension Pack* and `gdb` (`sudo apt install gdb`).
 2. Press **F5**. `.vscode/launch.json` builds `build/debug` through the task in
@@ -226,7 +241,7 @@ To debug a single example without the menu, set `"args": ["--run", "core/smart_p
 `launch.json`.
 
 ---
-## 10. Docker
+## 11. Docker
 
 ```bash
 # Build the image (swap DOCKER_USERNAME for your account)
@@ -243,7 +258,7 @@ docker push DOCKER_USERNAME/cpp-lab
 `-i` keeps stdin open, `-t` allocates a terminal, `--rm` removes the container when it exits.
 
 ---
-## 11. Troubleshooting
+## 12. Troubleshooting
 
 | Symptom | Fix |
 |---|---|
@@ -255,7 +270,7 @@ docker push DOCKER_USERNAME/cpp-lab
 | `push access denied` when pushing the image | `docker login` first |
 
 ---
-## 12. Evaluating the executable
+## 13. Evaluating the executable
 
 ```bash
 size ./build/bin/cpp_lab_project

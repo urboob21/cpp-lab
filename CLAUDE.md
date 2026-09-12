@@ -24,7 +24,8 @@ Command line of the app: `--list [filter]`, `--run <id|filter>`, `--run-all [fil
 Example ids look like `core/smart_pointer/Weak`.
 
 CMake options: `CPPLAB_BUILD_TESTS` (ON), `CPPLAB_BUILD_DEMOS` (ON), `CPPLAB_BUILD_GUI`
-(AUTO/ON/OFF - gtkmm-4.0 is optional), `CPPLAB_ENABLE_SANITIZERS` (OFF, ASan+UBSan),
+(AUTO/ON/OFF - gtkmm-4.0 is optional), `CPPLAB_BUILD_DOCS` (ON, needs doxygen),
+`CPPLAB_DOCS_WARNINGS_AS_ERRORS` (OFF), `CPPLAB_ENABLE_SANITIZERS` (OFF, ASan+UBSan),
 `CPPLAB_WARNINGS_AS_ERRORS` (OFF), `ENABLE_COVERAGE` (OFF).
 
 Tests: `-L unit` are the GoogleTest tests in `tests/`, `-L example` are auto-generated smoke tests
@@ -93,11 +94,24 @@ clang-tidy -p build $(git ls-files 'src/*.cpp')     # configured by .clang-tidy,
 - Naming (`.clang-tidy`): `lower_case` variables and namespaces, `CamelCase` types, trailing `_` on
   private members, `kName` for constants.
 
+## API documentation
+
+`cmake --build build --target docs` runs Doxygen (`cmake/Docs.cmake` fills `docs/Doxyfile.in` into
+`build/Doxyfile`) and writes `build/docs/html/`. The target exists only when doxygen is installed;
+`CPPLAB_DOCS_WARNINGS_AS_ERRORS=ON` (used in CI) turns Doxygen warnings into failures, so keep
+`build/docs/doxygen-warnings.log` empty. Doxygen parses the Markdown too: a fenced code block needs
+a blank line before it, and a bare `<header>` in prose is read as an HTML tag - write `` `<random>` ``.
+Public headers in `include/lab/` are documented with `///`; examples keep plain `//` comments and
+are read through the source browser.
+
 ## CI
 
-`.github/workflows/cpp-build-test-coverage.yml` runs on push/PR to `master` inside
-`urboob21/cpp-lab:latest`: cppcheck, build with coverage, `ctest`, lcov summary, plus a second job
-that builds with `CPPLAB_ENABLE_SANITIZERS=ON` and runs the tests again.
+- `.github/workflows/cpp-build-test-coverage.yml` runs on push/PR to `master` inside
+  `urboob21/cpp-lab:latest`: cppcheck, build with coverage, `ctest`, lcov summary, a Release job
+  with `CPPLAB_WARNINGS_AS_ERRORS=ON`, and a sanitizer job (`CPPLAB_ENABLE_SANITIZERS=ON`).
+- `.github/workflows/docs.yml` builds the Doxygen site (warnings are errors) and deploys it to
+  GitHub Pages from `master`. `scripts/publish_wiki.sh` refreshes the wiki Home page that links to
+  it; see `docs/doxygen.md`.
 
 ## Other programs
 
@@ -111,4 +125,4 @@ that builds with `CPPLAB_ENABLE_SANITIZERS=ON` and runs the tests again.
 
 `docs/README.md` indexes the per-folder READMEs (`src/**/README.md`), which explain each topic and
 embed the draw.io UML diagrams in `docs/uml/`. When adding or renaming an example, update the
-README of its folder.
+README of its folder. `docs/doxygen.md` covers the generated API site.

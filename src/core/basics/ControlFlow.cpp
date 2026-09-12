@@ -19,7 +19,7 @@
 
 namespace {
 
-/// std::rand() is simple but low quality; <random> is the modern way.
+/// std::rand() is simple but low quality; `<random>` is the modern way.
 int randomInt(int min, int max) {
   static std::mt19937 engine{std::random_device{}()};
   std::uniform_int_distribution<int> distribution(min, max);

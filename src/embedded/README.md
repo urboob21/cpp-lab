@@ -1,11 +1,13 @@
 # Embedded Bare-Metal: Build, Link, Boot, and Debug
 #### Env
+
 ```bash
 $ sudo apt install gcc-arm-none-eabi
 $ apt-get install qemu-system
 ```
 
 ## 1. Building Process
+
 ```bash
 #Sources files      #Toolchain                 #Object files
 +-----------+       +------------------+       +-----------+
@@ -32,6 +34,7 @@ $ apt-get install qemu-system
 ```
 ### 1.1. Compiler
 A compiler is a software program that translates source code written in a high-level programming language into a lower-level form, such as assembly code, object code, or machine code, while preserving the program's functionality.
+
 ```bash
 $ gcc # native
 $ g++
@@ -43,6 +46,7 @@ $ aarch64-none-elf-gcc
 ### 1.2. Cross Compiler
 A cross compiler is a compiler that runs on one platform (host) but generates executable code for a different platform (target).
 An ARM cross compiler can run on a Linux PC and generate binaries that execute on an ARM-based embedded system.
+
 ```bash
 $ arm-none-eabi-gcc
 $ aarch64-none-elf-gcc
@@ -51,6 +55,7 @@ $ aarch64-none-elf-gcc
 ### 1.3. Toolchain
 A toolchain is a collection of software development tools used to build, debug, and analyze software.
 A typical embedded ARM toolchain includes:
+
 ```bash
 $ arm-none-eabi-gcc      # Compiler
 $ arm-none-eabi-as       # Assembler
@@ -110,6 +115,7 @@ A microcontroller does not start executing from `main()` after power-up or reset
 
 ---
 ### 2. Flashing Process
+
 ```bash
 
                                             +----------------+
@@ -169,6 +175,7 @@ A microcontroller does not start executing from `main()` after power-up or reset
 
 ### 2.1. Build executable
 Compile the source files and link them into the `firmware.elf`
+
 ```bash
 $ arm-none-eabi-gcc \
     -mcpu=cortex-m3 \
@@ -191,6 +198,7 @@ $ arm-none-eabi-gcc \
 - **ELF file** does include symbol tables, debug information, or other metadata.
 ### 2.2. Generate a Binary Image
 Convert the ELF executable into a raw binary image that contains only the program data that will be stored in Flash memory.
+
 ```bash
 $ arm-none-eabi-objcopy \
     -O binary \
@@ -201,6 +209,7 @@ $ arm-none-eabi-objcopy \
 ### 2.3. Boot and Debug with QEMU
 QEMU can emulate the `STM32VLDISCOVERY` board and load firmware
 #### Start QEMU
+
 ```bash
 $ qemu-system-arm \
     -M stm32vldiscovery \
@@ -234,6 +243,7 @@ $ qemu-system-arm \
     ```
 
 - **Useful commands:**
+
 ```bash
 monitor reset     # Reset the emulated target
 load              # Load firmware into target memory
@@ -247,6 +257,7 @@ continue
 
 ### Quit QEMU
 When running QEMU with `-nographic`, use:
+
 ```text
 Ctrl + A, then X
 

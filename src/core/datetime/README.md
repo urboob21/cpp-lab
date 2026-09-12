@@ -8,9 +8,9 @@ See also `core/concurrency/Timing` for measuring elapsed time with `<chrono>`.
 
 ---
 # Date and Time
-- <ctime> : provides functions and types to work with date and time values including parsing and formatting (inherited from C)
+- `<ctime>`: provides functions and types to work with date and time values including parsing and formatting (inherited from C)
 
-- <chrono>: provides facilities to deal with the duration time points and clocks (std11), it is more modern and type-safe approach
+- `<chrono>`: provides facilities to deal with the duration time points and clocks (std11), it is more modern and type-safe approach
 
 ## ctime
 - Data Types:

@@ -46,6 +46,7 @@ message(STATUS "Build type  : ${CMAKE_BUILD_TYPE}")
 include(CompilerOptions)  # cpplab::options - warnings, coverage, sanitizers
 include(Dependencies)     # Threads, GoogleTest, gtkmm-4.0
 include(CppLab)           # cpplab_add_example_module(), cpplab_discover_example_tests()
+include(Docs)             # 'docs' target - Doxygen API documentation (optional)
 
 # Enable CTest (unit tests + example smoke tests)
 enable_testing()

@@ -37,7 +37,7 @@
 
 ## 2. Input with istream
 - Use `extraction operator (>>)` to read information from an input stream. It skips **whitespace (blanks, tabs, and newlines)**. Use `get(), getLine()` to not discard the whitespace.
-- `manipulator` is an object that is used to modify a stream when applied with the `extraction (>>)` or `insertion (<<)` operators. <iomanip>
+- `manipulator` is an object that is used to modify a stream when applied with the `extraction (>>)` or `insertion (<<)` operators (`<iomanip>`).
 
 ## 1.3. Output with ostream
 - There are two ways to change the formatting options:
@@ -58,6 +58,7 @@
   - Clear a string stream
 
 - e.g:
+
 ```cpp
 #include <sstream>
 #include <string>
@@ -105,6 +106,7 @@ https://www.learncpp.com/cpp-tutorial/stream-states-and-input-validation/
 <br>
 
 - **File output:**
+
 ```cpp
 #include <fstream>
 #include <iostream>
@@ -157,6 +159,7 @@ static void fileOutput() {
 <br>
 
 - **File input:**
+
 ```cpp
 static void fileInput() {
   std::ifstream inFile{"grs_bytes.csv"};
@@ -214,6 +217,7 @@ iofile.seekg(iofile.tellg(), std::ios::beg); // seek to current file position
 
 ## 1.8 Binary File
 - e.g.
+
 ```cpp
 #include <string>
 #include <iostream>

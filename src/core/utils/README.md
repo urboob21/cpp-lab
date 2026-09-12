@@ -25,6 +25,7 @@ There are several ways to represent **"no value"**:
 
 
 **`optional`** was introduced to represent data that may be absent when that absence is part of the domain logic.
+
 ```cpp
 std::optional<std::string> name_opt = std::nullopt;
 ```

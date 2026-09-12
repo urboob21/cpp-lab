@@ -33,6 +33,7 @@
 ### 1.1. Non Member Function
 - It serves the same kind of role as the package access specifier in Java.
 - `a << b` C++ tries in this order:
+
 ```cpp
 a.operator<<(b)
 operator<<(a, b) (non-member function)
@@ -56,6 +57,7 @@ operator OP (type_of_X, type_of_Y)
 - The member does not know about the existence of the class
 
 - UML:
+
 ```cpp
 +------------------------+
 |          Car           |
@@ -98,6 +100,7 @@ public:
 - The member does not know about the existence of the class
 
 - UML:
+
 ```cpp
 +-----------------------------+
 |        Department           |
@@ -137,6 +140,7 @@ public:
 - The associated member does not have its existence managed by the class
 - The associated member may or may not know about the existence of the class
 - UML
+
 ```cpp
 +---------------------+                 +---------------------+
 |       Doctor        |-----------------|       Patient       |
@@ -165,6 +169,7 @@ public:
 -  One class uses another class to perform a task. 
 -  It is temporarily created, used, and then destroyed, or passed into a member function from an external source.
 - UML
+
 ```cpp
 +---------------------+
 |         Car         |
@@ -200,6 +205,7 @@ public:
 ### 2.5. Container
 -  The class one class provides a container to hold multiple objects of another type
 - UML
+
 ```cpp
 #include <vector>
 
@@ -241,6 +247,7 @@ private:
 
 ## 2.6. Inheritance
 - **Is-a**
+
 ```cpp
 +----------------------+
 |        Animal        |
@@ -270,6 +277,7 @@ public:
 
 ## 2.7 Embedded a.k.a Nested/Inner Class
 - Type-level containment
+
 ```cpp
 +----------------------+
 |        Car           |

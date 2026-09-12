@@ -19,6 +19,7 @@
     4. The `Model` fetches or updates the data (e.g., from an API or database).
     5. The `Model` sends data back to the `ViewModel`.
     6. The `ViewModel` updates the observable data, which automatically updates the `View` through `data binding or observers`.
+
 ```bash
 User
  |
@@ -42,6 +43,7 @@ View <-> ViewModel <-> Model    # view automatically update
     3. The `Controller` processes the input, performs business logic, and may update the `Model`.
     4. The `Model` updates its data (e.g., saves to a database or gets data from an API).
     5. The `Controller` then updates the `View` based on the new `Model` data.
+
 ```bash
 User
  |
