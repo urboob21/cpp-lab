@@ -61,7 +61,6 @@ ENABLE_PREPROCESSING   = YES
 MACRO_EXPANSION        = NO
 SKIP_FUNCTION_MACROS   = YES
 INCLUDE_PATH           = "@PROJECT_SOURCE_DIR@/include"
-PREDEFINED             = CPPLAB_SOURCE_DIR=""
 
 # --- Source browser --------------------------------------------------------
 # The point of the lab is the code, so make every file browsable and linked.
