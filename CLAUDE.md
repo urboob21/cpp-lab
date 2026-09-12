@@ -4,64 +4,108 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-A C++20 learning lab: many small, self-contained examples (language features, STL, concurrency, design patterns, sockets, a PID controller) compiled into one interactive menu-driven executable, plus a few standalone executables (GTK4 MVC/MVVM apps, a `dlopen` demo) and a bare-metal ARM example that sits outside CMake.
+A C++20 learning lab: ~100 small, self-contained examples (language features, STL, concurrency,
+design patterns, sockets, a PID controller) compiled into one menu-driven executable, plus
+standalone programs (GTK4 MVC/MVVM apps, a `dlopen` plugin demo) and a bare-metal ARM example that
+is built outside CMake.
 
-## Build & run
-
-```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug   # configure
-cmake --build build                            # build all targets
-./build/bin/cpp_lab_project                    # interactive examples menu (optional: -mode Dev|Uat|Prod)
-./scripts/run.sh                               # build + cppcheck + run (needs private/genid.py, which is gitignored)
-```
-
-- Configuring needs **gtkmm-4.0** (`libgtkmm-4.0-dev`). `cmake/Dependencies.cmake` marks it `REQUIRED`, so configure fails without it, even if you only want the main executable. GoogleTest is fetched over the network with FetchContent on the first configure.
-- Executables go to `build/bin/` and shared libs to `build/lib/`. VS Code tasks/launch use `build/debug` instead.
-- Other targets: `ap`, `mvc_ap`, `mvvm_ap` (GTK4 GUIs in `src/ap/`) and `demo_dlopen` (loads `libsample_app.so` at runtime; see `src/demo/dlopen/README.md` for why `bridge` must stay SHARED).
-- `src/embedded/` is not part of CMake. Build and boot it in QEMU with `cd src/embedded && ./run.sh [gui|debug]` (requires `gcc-arm-none-eabi` and `qemu-system-arm`).
-
-## Tests
-
-GoogleTest/GMock tests live in `tests/` (the target is `cpp_lab_project_unit_test`; mocks and fakes are in `tests/mock/`). **`add_subdirectory(tests)` is currently commented out in the top-level `CMakeLists.txt`**, so uncomment it before building or running tests.
+## Build, run, test
 
 ```bash
-ctest --test-dir build --output-on-failure             # all tests
-ctest --test-dir build -R 'DivTest'                    # subset (tests registered via gtest_discover_tests)
-./build/bin/cpp_lab_project_unit_test --gtest_filter='DivTest.InvalidNumbers'
-./scripts/gen_coverage_lcov.sh                         # or gen_coverage_gcovr.sh; CI uses -DENABLE_COVERAGE=ON
+cmake -S . -B build                 # Debug by default
+cmake --build build -j
+./build/bin/cpp_lab_project         # interactive menu
+ctest --test-dir build -j --output-on-failure
+./scripts/run.sh                    # build + cppcheck + tests + menu
 ```
 
-The test target compiles only the sources listed in `tests/CMakeLists.txt` (currently `src/DeleteMe.cpp`). Add any source under test to that list.
+Command line of the app: `--list [filter]`, `--run <id|filter>`, `--run-all [filter]`,
+`--list-ids`, `--plain` (no log prefixes/colors), `--mode dev|uat|prod`, `--version`, `--help`.
+Example ids look like `core/smart_pointer/Weak`.
 
-## Static analysis & formatting
+CMake options: `CPPLAB_BUILD_TESTS` (ON), `CPPLAB_BUILD_DEMOS` (ON), `CPPLAB_BUILD_GUI`
+(AUTO/ON/OFF - gtkmm-4.0 is optional), `CPPLAB_ENABLE_SANITIZERS` (OFF, ASan+UBSan),
+`CPPLAB_WARNINGS_AS_ERRORS` (OFF), `ENABLE_COVERAGE` (OFF).
 
-CI (`.github/workflows/cpp-build-test-coverage.yml`, on push/PR to `master`, inside the `urboob21/cpp-lab:latest` Docker image) fails on cppcheck findings:
+Tests: `-L unit` are the GoogleTest tests in `tests/`, `-L example` are auto-generated smoke tests
+that run every non-interactive example once (`example:<id>`). Both must stay green, also in a
+sanitizer build.
+
+## Architecture: the lab framework
+
+`include/lab/` + `src/lab/` are a small framework; everything else is examples.
+
+- `LAB_EXAMPLE("Name", "description" [, lab::kInteractive]) { ... }` (lab/Example.h) declares a
+  file-local function and registers it in `lab::Registry` from a static initializer.
+- The **menu group comes from the file path**: `src/core/smart_pointer/Weak.cpp` becomes the id
+  `core/smart_pointer/Weak`. `CPPLAB_SOURCE_DIR` (a compile definition) turns `__FILE__` into a
+  repository-relative path.
+- `lab::Registry` keeps examples sorted, rejects duplicate ids and invalid names; `main.cpp`
+  reports registry errors and exits non-zero.
+- `lab::runMenu` (Menu.cpp) builds a folder tree from the ids: numbers navigate, `0` goes back,
+  text searches, `q` quits. `lab::runExample` / `lab::runAll` (Runner.cpp) print the banner, catch
+  exceptions and restore `std::cout` formatting.
+- Logging: `LOG("text")`, `LOG_S("x = " << x)`, `LOG_FUNC()` (current function signature),
+  `LOG_SECTION("Title")`. Debug builds prefix `[time][file:line][function]`; Release and `--plain`
+  print the bare message.
+- `lab/version.h` is generated from `include/lab/version.h.in`.
+
+## Adding an example
 
 ```bash
-cppcheck --enable=warning,style,performance,portability --inconclusive --inline-suppr --quiet --error-exitcode=1 ./src ./include
-clang-tidy -p build -header-filter='^src/.*' $(find src -name "*.cpp")   # not enforced in CI
-clang-format -i <file>                                                     # Google-based style (.clang-format)
+./scripts/new_example.sh core/utils Span "std::span: a view over contiguous memory"
 ```
 
-The `.clang-tidy` naming rules are lower_case variables and namespaces, CamelCase types, and a trailing `_` on class members. Code also uses `kName` for constants and enumerators.
+No CMake change is needed: `cpplab_add_example_module()` globs each module folder with
+`CONFIGURE_DEPENDS`, and the ctest smoke test is discovered from `--list-ids` at test time. A new
+top-level module needs one line in `src/CMakeLists.txt`. Full conventions:
+`docs/adding-examples.md`.
 
-## Architecture: the example registry
+House rules for example code (see also `docs/adding-examples.md`):
 
-The main executable is a plugin-style registry that fills itself during static initialization:
+- Put helpers in an anonymous namespace; all examples link into one binary, so global names would
+  clash (ODR).
+- Header comment: what it teaches, key points/pitfalls, a cppreference link.
+- Split into small functions, each starting with `LOG_SECTION`.
+- Never execute undefined behavior; describe it instead. The smoke tests run under ASan/UBSan.
+- Write files only under `std::filesystem::temp_directory_path()` and delete them; restore global
+  state (e.g. `std::set_terminate`).
+- Keep examples fast and non-interactive; mark the ones that need a user or a peer with
+  `lab::kInteractive`.
 
-- `include/IExample.h` is the interface. It has `group()`, `name()`, `description()`, and `execute()`.
-- `include/ExampleRegistry.h` is a singleton map `group -> name -> factory`. The `REGISTER_EXAMPLE(Class)` macro at the bottom of each example `.cpp` defines a static registrar object that registers the class before `main` runs.
-- `src/main.cpp` only renders the menu from the registry. Groups are shown sorted, but examples inside a group follow `unordered_map` order, so menu numbers are unstable and piping choices into stdin is unreliable.
+## Static analysis and formatting
 
-**Adding an example:**
-1. Create a `.cpp` that puts its code in an anonymous namespace (often `namespace { namespace problem {...} namespace some_pattern {...} }`, each with its own `run()`).
-2. Define an `IExample` subclass and call `REGISTER_EXAMPLE(ThatClass);`.
-3. **Add the file to the module's source list** (`CORE_SOURCES`, `DP_SOURCES`, `SOCKET_SOURCES`, or `CONTROLLER_SOURCES` in `src/<module>/CMakeLists.txt`). There is no globbing, and a file missing from the list simply never shows up in the menu, with no error.
+```bash
+cppcheck --enable=warning,style,performance,portability --inconclusive --inline-suppr --quiet \
+  --error-exitcode=1 -I include --suppressions-list=.cppcheck-suppressions ./src ./include
+git ls-files '*.cpp' '*.h' | xargs clang-format -i
+clang-tidy -p build $(git ls-files 'src/*.cpp')     # configured by .clang-tidy, not enforced in CI
+```
 
-Every module's sources link into the same `cpp_lab_project` binary. Keep helpers in anonymous namespaces and give the registered example class a unique name, because many files share names like `Array.cpp` and define their own `run()`. The `group()` string sets the menu category and doesn't always match the directory (for example, `function/operator_overloading/*` registers as `core/overloading_operator`).
+- `-I include` is required, otherwise cppcheck cannot expand `LAB_EXAMPLE` and reports syntax
+  errors. Intentional findings (teaching demos) are listed in `.cppcheck-suppressions`; note that a
+  line containing only `#` breaks that file.
+- `.clang-format` is Google-based with `Standard: c++20`. Do not set it back to `c++11`: the
+  formatter then mangles digit separators such as `1'000'000`.
+- Naming (`.clang-tidy`): `lower_case` variables and namespaces, `CamelCase` types, trailing `_` on
+  private members, `kName` for constants.
 
-Use `LOG(msg)` / `LOG_S(a << b)` from `include/Logger.h` for output. Debug builds add a timestamp, file:line, and function; `NDEBUG` builds print plain lines. `version.h` is generated into `build/generated/` from `include/version.h.in`.
+## CI
+
+`.github/workflows/cpp-build-test-coverage.yml` runs on push/PR to `master` inside
+`urboob21/cpp-lab:latest`: cppcheck, build with coverage, `ctest`, lcov summary, plus a second job
+that builds with `CPPLAB_ENABLE_SANITIZERS=ON` and runs the tests again.
+
+## Other programs
+
+- `src/ap/` GTK4 apps (`ap`, `mvc_ap`, `mvvm_ap`), built only when gtkmm-4.0 is found.
+- `src/demo/dlopen/` host + plugin; the plugin path is compiled in via `SAMPLE_APP_PATH`, and
+  `bridge` must stay a SHARED library (see its README).
+- `src/embedded/` bare-metal ARM firmware: `cd src/embedded && ./run.sh [gui|debug]`
+  (needs `gcc-arm-none-eabi` and `qemu-system-arm`).
 
 ## Docs
 
-`docs/README.md` indexes the per-module READMEs (`src/**/README.md`), which explain each topic and embed the draw.io UML diagrams from `docs/uml/`. When you add a design pattern example, update the matching README (and diagram if one exists).
+`docs/README.md` indexes the per-folder READMEs (`src/**/README.md`), which explain each topic and
+embed the draw.io UML diagrams in `docs/uml/`. When adding or renaming an example, update the
+README of its folder.

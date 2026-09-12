@@ -8,27 +8,29 @@ if ! command -v gcovr >/dev/null 2>&1; then
   exit 1
 fi
 
-# Configure project (only if build folder does not exist)
-if [ ! -d build ]; then
-  cmake -S . -B build \
-    -DCMAKE_BUILD_TYPE=Debug \
-    -DCMAKE_CXX_FLAGS="--coverage -O0 -g"
-fi
+# Configure a separate coverage build (ENABLE_COVERAGE adds --coverage -O0 -g)
+cmake -S . -B build-coverage \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DENABLE_COVERAGE=ON
 
 # Build project
-cmake --build build
+cmake --build build-coverage -j "$(nproc)"
 
 # Run unit tests
-ctest --test-dir build --output-on-failure
+ctest --test-dir build-coverage --output-on-failure -j "$(nproc)"
 
 # Generate coverage report
 mkdir -p coverage_gcovr
 
-gcovr -r . build \
+gcovr -r . build-coverage \
   --branches \
   --html \
   --html-details \
   -o coverage_gcovr/index.html
 
-# Open coverage report
-xdg-open coverage_gcovr/index.html
+echo "Report: coverage_gcovr/index.html"
+
+# Open it in a browser when there is a desktop session
+if command -v xdg-open >/dev/null 2>&1 && [ -n "${DISPLAY:-}" ]; then
+  xdg-open coverage_gcovr/index.html
+fi
