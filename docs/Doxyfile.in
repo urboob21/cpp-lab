@@ -1,0 +1,112 @@
+# ---------------------------------------------------------------------------
+# Doxygen configuration for cpp-lab.
+#
+# CMake turns this file into build/Doxyfile (see cmake/Docs.cmake), so the
+# @VAR@ placeholders below are filled in with real paths. Only the settings
+# that differ from the Doxygen defaults are listed; run
+# `doxygen -g -` to see the full set with documentation.
+# ---------------------------------------------------------------------------
+
+# --- Project identity ------------------------------------------------------
+PROJECT_NAME           = "@PROJECT_NAME@"
+PROJECT_NUMBER         = "@PROJECT_VERSION@"
+PROJECT_BRIEF          = "A C++20 learning lab: ~100 runnable, self-contained examples"
+OUTPUT_DIRECTORY       = "@DOXYGEN_OUTPUT_DIRECTORY@"
+OUTPUT_LANGUAGE        = English
+
+# --- What to read ----------------------------------------------------------
+# The markdown pages come first: README.md becomes the front page, the guides
+# below it become "Related Pages".
+INPUT                  = @DOXYGEN_INPUT@
+FILE_PATTERNS          = *.h *.hpp *.cpp *.md
+RECURSIVE              = YES
+EXCLUDE                = @DOXYGEN_EXCLUDE@
+EXCLUDE_PATTERNS       = */build*/* */_deps/* */.git/*
+IMAGE_PATH             = "@PROJECT_SOURCE_DIR@/docs"
+USE_MDFILE_AS_MAINPAGE = "@PROJECT_SOURCE_DIR@/README.md"
+STRIP_FROM_PATH        = "@PROJECT_SOURCE_DIR@"
+STRIP_FROM_INC_PATH    = "@PROJECT_SOURCE_DIR@/include"
+
+# --- What to document ------------------------------------------------------
+# The lab is teaching material: show everything, including the helpers that
+# examples keep in anonymous namespaces, so a reader can follow the code.
+EXTRACT_ALL            = YES
+EXTRACT_STATIC         = YES
+EXTRACT_ANON_NSPACES   = YES
+EXTRACT_LOCAL_CLASSES  = YES
+EXTRACT_PRIV_VIRTUAL   = YES
+HIDE_UNDOC_MEMBERS     = NO
+INTERNAL_DOCS          = YES
+SHOW_USED_FILES        = YES
+
+# --- Comment style ---------------------------------------------------------
+# Doxygen reads ///, /** */ and //!. The framework headers in include/lab use
+# ///; the examples explain themselves in plain // comments, which show up in
+# the source browser instead.
+JAVADOC_AUTOBRIEF      = YES
+QT_AUTOBRIEF           = YES
+MULTILINE_CPP_IS_BRIEF = NO
+TAB_SIZE               = 2
+MARKDOWN_SUPPORT       = YES
+AUTOLINK_SUPPORT       = YES
+BUILTIN_STL_SUPPORT    = YES
+SORT_MEMBER_DOCS       = NO
+SORT_BRIEF_DOCS        = NO
+
+# --- Preprocessing ---------------------------------------------------------
+# LAB_EXAMPLE(...) { ... } expands to a function definition. Doxygen skips
+# function-like macros by default (SKIP_FUNCTION_MACROS), which is what we
+# want: the example body is shown in the source browser, not as an API entry.
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = NO
+SKIP_FUNCTION_MACROS   = YES
+INCLUDE_PATH           = "@PROJECT_SOURCE_DIR@/include"
+
+# --- Source browser --------------------------------------------------------
+# The point of the lab is the code, so make every file browsable and linked.
+SOURCE_BROWSER         = YES
+INLINE_SOURCES         = NO
+STRIP_CODE_COMMENTS    = NO
+REFERENCED_BY_RELATION = YES
+REFERENCES_RELATION    = NO
+VERBATIM_HEADERS       = YES
+
+# --- HTML output -----------------------------------------------------------
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+GENERATE_TREEVIEW      = YES
+FULL_SIDEBAR           = NO
+HTML_COLORSTYLE        = AUTO_LIGHT
+DISABLE_INDEX          = NO
+SEARCHENGINE           = YES
+HTML_DYNAMIC_SECTIONS  = YES
+
+# --- Other formats ---------------------------------------------------------
+GENERATE_LATEX         = NO
+GENERATE_MAN           = NO
+GENERATE_XML           = NO
+
+# --- Diagrams (graphviz) ---------------------------------------------------
+# HAVE_DOT is YES only when CMake found the `dot` tool from graphviz.
+HAVE_DOT               = @DOXYGEN_HAVE_DOT@
+DOT_IMAGE_FORMAT       = svg
+INTERACTIVE_SVG        = YES
+CLASS_GRAPH            = YES
+COLLABORATION_GRAPH    = NO
+INCLUDE_GRAPH          = NO
+INCLUDED_BY_GRAPH      = NO
+CALL_GRAPH             = NO
+CALLER_GRAPH           = NO
+DOT_GRAPH_MAX_NODES    = 60
+
+# --- Warnings --------------------------------------------------------------
+# Undocumented code is fine here (most examples are plain // comments), but a
+# broken \param or a dangling link is a real mistake, so it is reported.
+QUIET                  = YES
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = NO
+WARN_IF_DOC_ERROR      = YES
+WARN_IF_INCOMPLETE_DOC = YES
+WARN_NO_PARAMDOC       = NO
+WARN_AS_ERROR          = @DOXYGEN_WARN_AS_ERROR@
+WARN_LOGFILE           = "@DOXYGEN_OUTPUT_DIRECTORY@/doxygen-warnings.log"

@@ -88,12 +88,13 @@ class MainWindow : public Gtk::Window {
         return;
 
       // Step 2: Update Monitor A (Hard-coded) directly
+      const std::string escaped = Glib::Markup::escape_text(text).raw();
       m_labelMonitorA_.set_markup("<span foreground='blue' size='x-large'>" +
-                                  text + "</span>");
+                                  escaped + "</span>");
 
       // Step 3: Update Monitor B (Hard-coded) directly
       m_labelMonitorB_.set_markup("<span foreground='red' size='x-large'>" +
-                                  text + "</span>");
+                                  escaped + "</span>");
       std::cout << "Updated directly without Model!" << std::endl;
     });
   }

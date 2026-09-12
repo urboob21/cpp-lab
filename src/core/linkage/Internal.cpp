@@ -1,21 +1,33 @@
-#include <iostream>
+// Entities with INTERNAL linkage: they are visible only inside this .cpp file
+// (this "translation unit"). Another file may even define entities with the
+// same names without any conflict.
 
-namespace internal {  // We must define the variable inside the same namespace as its extern declaration;
-                      // otherwise the linker cannot find the correct symbol.
+#include "lab/Logger.h"
 
-// 1. Static global variable/ function
+namespace internal {
+namespace {
+
+// 3. Everything in an anonymous namespace has internal linkage (preferred in C++).
+int ns_internal{300};
+
+}  // namespace
+
+// 1. `static` at namespace scope gives internal linkage (the C way).
 static int g_internal{42};
 static void func_internal() {
-  std::cout << "func_internal\n";
+  LOG("internal::func_internal() - only callable inside Internal.cpp");
 }
 
-// 2. Const/constexpr
-const int c_internal{100};
-constexpr int ce_internal{100};
+// 2. const and constexpr variables at namespace scope are internal by default.
+const int kConstInternal{100};
+constexpr int kConstexprInternal{200};
 
-// 3. Anonymous namepsace
-namespace {
-int ns_internal{100};
+/// External linkage on purpose: the one door into this file (see Linkage.cpp).
+void printInternals() {
+  func_internal();
+  LOG_S("g_internal = " << g_internal << ", kConstInternal = " << kConstInternal
+                        << ", kConstexprInternal = " << kConstexprInternal
+                        << ", ns_internal = " << ns_internal);
 }
 
 }  // namespace internal

@@ -1,3 +1,6 @@
+> Examples: `dp/creational/{FactoryMethod, AbstractFactory, Builder, Prototype, Singleton}` - run
+> one with `./build/bin/cpp_lab_project --run dp/creational/Builder`
+
 # Creational Design Patterns
 
 Creational design patterns provide various object creation mechanisms, which increase flexibility and reuse of existing code.

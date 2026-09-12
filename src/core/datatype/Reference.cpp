@@ -1,103 +1,110 @@
-// cppcheck-suppress-file [unreadVariable]
+// -----------------------------------------------------------------------------
+// References
+//
+//   int& ref = x;          lvalue reference: another name (alias) for x
+//   const int& cref = 42;  const reference: can bind to temporaries
+//   int&& rref = 42;       rvalue reference: binds to temporaries / std::move
+//
+//   - A reference must be initialized and can never be re-bound.
+//   - Unlike a pointer it cannot be null.
+//   - Pass `const T&` to avoid copies of large objects; `T&` for out-params.
+//   - Never return a reference to a local variable (it dangles).
+//
+// Reference: https://en.cppreference.com/w/cpp/language/reference
+// -----------------------------------------------------------------------------
 
-#include <iostream>
+#include <string>
+#include <utility>
 
-// A type defined in terms of other types
+#include "lab/Example.h"
+#include "lab/Logger.h"
 
-void increment(int& x) {
-  x += 1;
+namespace {
+
+void basics() {
+  LOG_SECTION("lvalue references");
+  int value = 10;
+  int& alias = value;  // alias IS value
+  // int& unbound;     // error: references must be initialized
+
+  alias = 20;
+  LOG_S("alias = 20 -> value = " << value);
+  LOG_S("&alias == &value: " << std::boolalpha << (&alias == &value));
+
+  int other = 99;
+  alias = other;  // assigns 99 to value, does NOT re-bind alias to other
+  LOG_S("alias = other -> value = " << value
+                                    << " (alias still refers to value)");
 }
 
-void incrementConst(const int& x) {
-  // s cannot be modified here
-  // x += 1;
+void increment(int& number) {
+  ++number;  // modifies the caller's variable
 }
 
-static int global = 42;
-int& returnRef() {
-  return global;  // the object must outlive the reference.
+std::size_t length(const std::string& text) {  // no copy, cannot modify
+  return text.size();
 }
 
-void references() {
-  std::cout << "\n--- References Type Examples ---\n";
-  int a = 10;
-  std::cout << "a = " << a << "\n";
-
-  // *1. Reference basics
-  // int &ref_error; // reference must be initialized
-  int& ref_a = a;
-
-  ref_a = 20;  // modifies 'a', since ref is just an alias
-  std::cout << "ref_a =20, a = " << a << "\n";  // prints 20
-
-  // Cannot reseat: once 'ref' is bound to 'a', it cannot be bound to another
-  // variable int b = 30; ref = &b;   invalid, would assign value instead of
-  // rebinding
-
-  // *2. Pass by reference
-  increment(a);                                      // avoids making a copy
-  std::cout << "a after increment = " << a << "\n";  // prints 21
-
-  // *3. Pass by const reference
-  incrementConst(a);
-
-  // *4. Return by reference
-  int const& b = returnRef();
-  std::cout << "By reference: " << b << '\n';
+const std::string& greeting() {
+  static const std::string kGreeting = "hello";  // outlives the function
+  return kGreeting;
+  // Returning a reference to a local std::string would dangle.
 }
 
-/**
- *
-  a (lvalue)
-  |
-  | std::move(a) (rvalue reference)
-  V
-source (rvalue reference parameter, but it's the lvalue inside the function)
-  |
-  | steal data
-  V
-  b
- */
-namespace rvalue_reference {
+void parameters() {
+  LOG_SECTION("Passing and returning references");
+  int counter = 0;
+  increment(counter);
+  LOG_S("increment(counter) -> counter = " << counter);
 
-// Move-like function taking an rvalue reference as parameter
-int copyConstructor(int&& x) {
-  // Inside the function, x is a named lvalue that refers to the original object
-  // passed in (here, 'a')
-  int result = x * 10;  // compute result based on x
-  x = 0;                // reset the original object to 0
-  return result;        // return the computed result
+  LOG_S("length(\"temporary\") = "
+        << length("temporary")
+        << "  <- const& binds to a temporary std::string");
+  LOG_S("greeting() = " << greeting());
+
+  const std::string& extended = std::string("lifetime ") + "extended";
+  LOG_S("const& to a temporary keeps it alive: " << extended);
 }
 
-void run() {
-  int a{10};  // original value
-
-  // Call function with an rvalue reference using std::move
-  // std::move(a) casts a (lvalue) into an rvalue reference (int&&)
-  int b = copyConstructor(std::move(a));
-
-  std::cout << b << std::endl;  // prints 100
-  std::cout
-      << a
-      << std::endl;  // prints 0, because x in the function referred to a and
-                     // was reset
+void take(int& /*value*/) {
+  LOG("  take(int&)       <- modifiable lvalue");
+}
+void take(const int& /*value*/) {
+  LOG("  take(const int&) <- const lvalue");
+}
+void take(int&& /*value*/) {
+  LOG("  take(int&&)      <- rvalue (temporary or std::move)");
 }
 
-}  // namespace rvalue_reference
+/// Takes an rvalue reference, i.e. it is allowed to "consume" its argument.
+std::string consume(std::string&& text) {
+  // Inside the function `text` has a name, so it is an lvalue again.
+  // std::move marks it as an rvalue once more to move it into the result.
+  std::string result = std::move(text);
+  return result + " (consumed)";
+}
 
-#include "ExampleRegistry.h"
+void rvalueReferences() {
+  LOG_SECTION("rvalue references and overload resolution");
+  int number = 1;
+  const int constant = 2;
+  take(number);
+  take(constant);
+  take(3);
+  take(std::move(number));  // std::move is only a cast to int&&
 
-class CReferences : public IExample {
- public:
-  std::string group() const override { return "core/datatype"; }
-  std::string name() const override { return "Reference"; }
-  std::string description() const override {
-    return "Compound type: References";
-  }
-  void execute() override {
-    references();
-    rvalue_reference::run();
-  }
-};
+  std::string message = "a long message";
+  const std::string result = consume(std::move(message));
+  LOG_S("result  = " << result);
+  LOG_S("message = \"" << message << "\" (moved-from: valid but unspecified)");
+}
 
-REGISTER_EXAMPLE(CReferences);
+}  // namespace
+
+LAB_EXAMPLE(
+    "Reference",
+    "lvalue and rvalue references, const& lifetime extension, std::move") {
+  basics();
+  parameters();
+  rvalueReferences();
+}

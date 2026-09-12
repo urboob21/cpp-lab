@@ -1,139 +1,127 @@
-// State is a behavioral design pattern that lets an object alter its behavior
-// when its internal state changes. It appears as if the object changed its
-// class. Appicability:
-// (*)    when you have an object that behaves differently depending on its
-// current state
-//        , the number of states is enormous, and the state-specific code
-//        changes frequently.
-// (**)   when you have a class polluted with massive conditionals that alter
-//        how the class behaves according to the current values of the class’s
-//        fields.
-// (***)  when you have a lot of duplicate code across similar states and
-// transitions of a condition-based state machine. UML:
-// docs/uml/patterns_behavioral_state.drawio.svg
+// -----------------------------------------------------------------------------
+// State (behavioral pattern)
+//
+// Lets an object change its behavior when its internal state changes - it
+// looks as if the object changed its class. Each state is a class; the context
+// delegates the state-specific work to the current state object.
+//
+// Problem: a class full of `switch (state_)` blocks in every method, where
+// adding a state means touching all of them.
+// Solution: one class per state; transitions are explicit.
+//
+// Use it when:
+//   - an object behaves differently depending on its state, with many states
+//   - state-specific code changes often
+//   - there are massive conditionals on the current state
+//
+// Participants:
+//   Context        Device - holds the current state, delegates to it
+//   State          DeviceState interface
+//   ConcreteState  IdleState, ProcessingState, ErrorState
+//
+// Implementation note: a state that replaces itself in the middle of its own
+// handle() would destroy the object that is still running. Here the context
+// applies the requested transition AFTER handle() returns.
+//
+// UML: docs/uml/dp/behavioral_state.drawio.svg
+// -----------------------------------------------------------------------------
 
-#include <iostream>
+#include <memory>
 #include <string>
+#include <utility>
+
+#include "lab/Example.h"
+#include "lab/Logger.h"
+
 namespace {
-namespace state {
-class DeviceContext;
 
-/**
- * The State interface declares the state-specific methods.
- * These methods should make sense for all concrete states because you don’t
- * want some of your states to have useless methods that will never be called.
- */
-class IState {
+class Device;
+
+/// State interface.
+class DeviceState {
  public:
-  virtual ~IState() = default;
-  virtual void setContext(DeviceContext* ctx) = 0;
-  virtual void handle() = 0;
+  virtual ~DeviceState() = default;
+  virtual std::string name() const = 0;
+  virtual void handle(Device& device) = 0;
 };
 
-/*
- * To avoid duplication of similar code across multiple states, you may provide
- * intermediate abstract classes that encapsulate some common behavior.
- */
-class AbstractState : public IState {
- protected:
-  DeviceContext* ctx_;
-
+/// Context.
+class Device {
  public:
-  void setContext(DeviceContext* ctx) override { this->ctx_ = ctx; }
-};
+  explicit Device(std::unique_ptr<DeviceState> initial)
+      : state_{std::move(initial)} {}
 
-/**
- * Context stores a reference to one of the concrete state objects and delegates
- * to it all state-specific work. The context communicates with the state object
- * via the state interface. The context exposes a setter for passing it a new
- * state object.
- */
-class DeviceContext {
+  /// One tick of work: delegates to the current state.
+  void tick() {
+    state_->handle(*this);
+    if (next_state_) {
+      LOG_S("    transition " << state_->name() << " -> "
+                              << next_state_->name());
+      state_ = std::move(next_state_);  // safe: handle() has already returned
+    }
+  }
+
+  /// Called by states to request a transition.
+  void transitionTo(std::unique_ptr<DeviceState> next) {
+    next_state_ = std::move(next);
+  }
+
+  int startJob() { return ++jobs_; }
+
  private:
-  IState* state_{};
-
- public:
-  explicit DeviceContext(IState* state) { this->changeState(state); }
-
-  ~DeviceContext() { delete state_; }
-
-  void changeState(IState* state) {
-    std::cout << "[DeviceContext]: Changing state\n";
-
-    delete this->state_;  // delete nullptr has no effect
-
-    this->state_ = state;
-    this->state_->setContext(this);
-  }
-
-  void operation() { this->state_->handle(); }
+  std::unique_ptr<DeviceState> state_;
+  std::unique_ptr<DeviceState> next_state_;
+  int jobs_{0};
 };
 
-/**
- * Concrete States provide their own implementations for the state-specific
- * methods.
- */
-class IdeConcreteState : public AbstractState {
+class IdleState : public DeviceState {
  public:
-  void handle() override;
+  std::string name() const override { return "Idle"; }
+  void handle(Device& device) override;
 };
 
-class ProcessingConcreteState : public AbstractState {
+class ProcessingState : public DeviceState {
  public:
-  void handle() override;
+  std::string name() const override { return "Processing"; }
+  void handle(Device& device) override;
 };
 
-class ErrorConcreteState : public AbstractState {
+class ErrorState : public DeviceState {
  public:
-  void handle() override {
-    std::cout << "[Error] Device error! Reset required.\n";
-
-    // After recover => go Idle
-    this->ctx_->changeState(new IdeConcreteState());
+  std::string name() const override { return "Error"; }
+  void handle(Device& device) override {
+    LOG("  [Error] resetting the device");
+    device.transitionTo(std::make_unique<IdleState>());
   }
 };
 
-void IdeConcreteState::handle() {
-  std::cout << "[Ide] Device is idle. Waiting...\n";
-  this->ctx_->changeState(new ProcessingConcreteState());
+void IdleState::handle(Device& device) {
+  LOG("  [Idle] new job arrived");
+  device.transitionTo(std::make_unique<ProcessingState>());
 }
 
-void ProcessingConcreteState::handle() {
-  std::cout << "[Processing] Processing data...\n";
-  bool ok = true;  // Example processing result
-  static int index = 0;
-  index++;
-  ok = index % 2 == 0;
-  if (ok) {
-    // Back to idle after finishing job
-    this->ctx_->changeState(new IdeConcreteState());
+void ProcessingState::handle(Device& device) {
+  const int job = device.startJob();
+  const bool failed = job % 3 == 0;  // every third job fails in this simulation
+  LOG_S("  [Processing] job " << job << (failed ? " failed" : " done"));
+  if (failed) {
+    device.transitionTo(std::make_unique<ErrorState>());
   } else {
-    this->ctx_->changeState(new ErrorConcreteState());
+    device.transitionTo(std::make_unique<IdleState>());
   }
 }
 
-namespace client {
-void clientCode(DeviceContext* const device) {
-  device->operation();
-}
-}  // namespace client
 void run() {
-  auto* device = new DeviceContext(new IdeConcreteState());
-  for (int loop_idx = 0; loop_idx < 10; ++loop_idx)
-    client::clientCode(device);
-  delete device;
+  LOG_SECTION("A device moving through Idle -> Processing -> Error states");
+  Device device{std::make_unique<IdleState>()};
+  for (int tick = 0; tick < 8; ++tick) {
+    device.tick();
+  }
 }
-}  // namespace state
+
 }  // namespace
 
-#include "ExampleRegistry.h"
-
-class StateExample : public IExample {
- public:
-  std::string group() const override { return "dp/behavioral"; }
-  std::string name() const override { return "State"; }
-  std::string description() const override { return "State Pattern Example"; }
-  void execute() override { state::run(); }
-};
-
-REGISTER_EXAMPLE(StateExample);
+LAB_EXAMPLE("State",
+            "an object changes behavior with its state: one class per state") {
+  run();
+}

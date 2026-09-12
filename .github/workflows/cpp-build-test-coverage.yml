@@ -3,7 +3,9 @@
 # -------------------------------------------------------------
 # Purpose:
 # Runs cppcheck (static analysis), builds your C++ project,
-# runs unit tests, and generates a coverage report.
+# runs the unit tests and one smoke test per example,
+# generates a coverage report, and repeats the tests with
+# AddressSanitizer + UndefinedBehaviorSanitizer.
 # -------------------------------------------------------------
 
 name: C++ Tests and Coverage
@@ -45,7 +47,7 @@ jobs:
       # -------------------------------------------------------
       # Step 2: Run Cppcheck (Static Analysis)
       # - Scans for common C++ issues (style, memory, logic)
-      # - You can adjust `--enable=` options as needed
+      # - -I include lets cppcheck understand the LAB_EXAMPLE macro
       # - https://cppcheck.sourceforge.io/manual.pdf
       # -------------------------------------------------------
       - name: Run static analysis with Cppcheck
@@ -56,26 +58,23 @@ jobs:
                    --quiet \
                    --inline-suppr \
                    --error-exitcode=1 \
+                   -I include \
+                   --suppressions-list=.cppcheck-suppressions \
                    ./src ./include
-    
+
       # -------------------------------------------------------
       # Step 3: Configure and build the project
       # -------------------------------------------------------
-      - name: Prepare build
+      - name: Build
         run: |
-          rm -rf build
-          mkdir build
-          cd build
-          cmake -DCMAKE_BUILD_TYPE=Debug -DENABLE_COVERAGE=ON ..
-          cmake --build .
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DENABLE_COVERAGE=ON
+          cmake --build build -j "$(nproc)"
 
       # -------------------------------------------------------
-      # Step 4: Run unit tests
+      # Step 4: Run unit tests and example smoke tests
       # -------------------------------------------------------
       - name: Run tests
-        run: |
-          cd build
-          ctest --output-on-failure
+        run: ctest --test-dir build --output-on-failure -j "$(nproc)"
 
       # -------------------------------------------------------
       # Step 5: Generate code coverage report
@@ -97,20 +96,50 @@ jobs:
           lcov --summary coverageFiltered.info >> $GITHUB_STEP_SUMMARY
 
       # # -------------------------------------------------------
-      # # Step 7: Run Clang-Tidy (experimenting , not exit)
-      # # - Modern C++ static analysis
-      # # - Enforces best practices
-      # # - Add `--warnings-as-errors=*` to exit code 1
+      # # Step 7: Run Clang-Tidy (experimenting, not enforced)
+      # # - Modern C++ static analysis, configured by .clang-tidy
       # # -------------------------------------------------------
       # - name: Run clang-tidy
-      #   # run: |
-      #   #   echo "Running clang-tidy..."
-      #   #   clang-tidy \
-      #   #     -checks='clang-analyzer-*,modernize-*,performance-*,readability-*' \
-      #   #     -p build \
-      #   #     $(find ./src -name '*.cpp')
       #   run: |
-      #       echo "Running clang-tidy using .clang-tidy options"
-      #       clang-tidy \
-      #         -p build \
-      #         -header-filter='^src/.*' $(find src -name "*.cpp")
+      #       clang-tidy -p build -header-filter='^src/.*' $(find src -name "*.cpp")
+
+  release:
+    # ---------------------------------------------------------
+    # A Release build with warnings as errors: optimizations enable extra
+    # compiler diagnostics that a Debug build never reports.
+    # ---------------------------------------------------------
+    runs-on: ubuntu-24.04
+    container:
+      image: urboob21/cpp-lab:latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Build and test in Release
+        run: |
+          cmake -S . -B build-release -DCMAKE_BUILD_TYPE=Release \
+                -DCPPLAB_WARNINGS_AS_ERRORS=ON -DCPPLAB_BUILD_GUI=OFF
+          cmake --build build-release -j "$(nproc)"
+          ctest --test-dir build-release --output-on-failure -j "$(nproc)"
+
+  sanitizers:
+    # ---------------------------------------------------------
+    # Same tests with AddressSanitizer + UndefinedBehaviorSanitizer:
+    # memory errors, leaks and undefined behavior fail the job.
+    # ---------------------------------------------------------
+    runs-on: ubuntu-24.04
+    container:
+      image: urboob21/cpp-lab:latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Build with sanitizers
+        run: |
+          cmake -S . -B build-asan -DCMAKE_BUILD_TYPE=Debug -DCPPLAB_ENABLE_SANITIZERS=ON -DCPPLAB_BUILD_GUI=OFF
+          cmake --build build-asan -j "$(nproc)"
+
+      - name: Run tests with sanitizers
+        run: ctest --test-dir build-asan --output-on-failure -j "$(nproc)"

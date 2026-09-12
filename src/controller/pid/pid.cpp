@@ -18,98 +18,70 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
+ *
+ * Modified for cpp-lab: namespace, std::unique_ptr pimpl, input validation.
  */
 
-#ifndef _PID_SOURCE_
-#define _PID_SOURCE_
-
-#include <iostream>
-#include <cmath>
 #include "pid.h"
 
-using namespace std;
+#include <algorithm>
+#include <stdexcept>
 
-class PIDImpl
-{
-    public:
-        PIDImpl( double dt, double max, double min, double Kp, double Kd, double Ki );
-        ~PIDImpl();
-        double calculate( double setpoint, double pv );
+namespace controller {
 
-    private:
-        double _dt;
-        double _max;
-        double _min;
-        double _Kp;
-        double _Kd;
-        double _Ki;
-        double _pre_error;
-        double _integral;
+class PIDImpl {
+ public:
+  PIDImpl(double dt, double max, double min, double kp, double kd, double ki)
+      : dt_{dt}, max_{max}, min_{min}, kp_{kp}, kd_{kd}, ki_{ki} {
+    if (dt_ <= 0.0) {
+      throw std::invalid_argument("PID: dt must be greater than zero");
+    }
+    if (min_ > max_) {
+      throw std::invalid_argument("PID: min must not be greater than max");
+    }
+  }
+
+  double calculate(double setpoint, double process_value) {
+    const double error = setpoint - process_value;
+
+    // Proportional term: reacts to the current error.
+    const double proportional = kp_ * error;
+
+    // Integral term: accumulates past errors and removes steady-state offset.
+    integral_ += error * dt_;
+    const double integral = ki_ * integral_;
+
+    // Derivative term: reacts to how fast the error changes (damping).
+    const double derivative = kd_ * (error - previous_error_) / dt_;
+
+    previous_error_ = error;
+
+    // Restrict the output to [min, max].
+    return std::clamp(proportional + integral + derivative, min_, max_);
+  }
+
+ private:
+  double dt_;
+  double max_;
+  double min_;
+  double kp_;
+  double kd_;
+  double ki_;
+  double previous_error_{0.0};
+  double integral_{0.0};
 };
 
+PID::PID(double dt, double max, double min, double kp, double kd, double ki)
+    : impl_{std::make_unique<PIDImpl>(dt, max, min, kp, kd, ki)} {}
 
-PID::PID( double dt, double max, double min, double Kp, double Kd, double Ki )
-{
-    pimpl = new PIDImpl(dt,max,min,Kp,Kd,Ki);
-}
-double PID::calculate( double setpoint, double pv )
-{
-    return pimpl->calculate(setpoint,pv);
-}
-PID::~PID() 
-{
-    delete pimpl;
-}
+// Defined here, where PIDImpl is a complete type: std::unique_ptr needs that to
+// delete it. This is why a pimpl class declares its destructor in the header.
+PID::~PID() = default;
+PID::PID(PID&&) noexcept = default;
+PID& PID::operator=(PID&&) noexcept = default;
 
-/**
- * Implementation
- */
-PIDImpl::PIDImpl( double dt, double max, double min, double Kp, double Kd, double Ki ) :
-    _dt(dt),
-    _max(max),
-    _min(min),
-    _Kp(Kp),
-    _Kd(Kd),
-    _Ki(Ki),
-    _pre_error(0),
-    _integral(0)
-{
+double PID::calculate(double setpoint, double process_value) {
+  return impl_->calculate(setpoint, process_value);
 }
 
-double PIDImpl::calculate( double setpoint, double pv )
-{
-    
-    // Calculate error
-    double error = setpoint - pv;
-
-    // Proportional term
-    double Pout = _Kp * error;
-
-    // Integral term
-    _integral += error * _dt;
-    double Iout = _Ki * _integral;
-
-    // Derivative term
-    double derivative = (error - _pre_error) / _dt;
-    double Dout = _Kd * derivative;
-
-    // Calculate total output
-    double output = Pout + Iout + Dout;
-
-    // Restrict to max/min
-    if( output > _max )
-        output = _max;
-    else if( output < _min )
-        output = _min;
-
-    // Save error to previous error
-    _pre_error = error;
-
-    return output;
-}
-
-PIDImpl::~PIDImpl()
-{
-}
-
-#endif
+}  // namespace controller

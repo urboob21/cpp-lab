@@ -30,6 +30,8 @@ class FakeTurtle : public Turtle {
       case 270:
         x_ -= distance;
         break;  // west
+      default:
+        break;  // other angles are not used by the tests
     }
 
     if (penDown_) {

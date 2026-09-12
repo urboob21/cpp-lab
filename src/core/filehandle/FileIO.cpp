@@ -1,119 +1,100 @@
+// -----------------------------------------------------------------------------
+// Text file I/O with <fstream>
+//
+//   std::ofstream   output file stream (creates/truncates the file by default)
+//   std::ifstream   input file stream
+//   std::fstream    both directions
+//
+// Steps: open (constructor or open()), check the stream, read/write with
+// << >> getline put get, close (close() or simply let it go out of scope).
+//
+// Open modes: std::ios::app (append), ate (start at the end), trunc (erase),
+// binary, in, out - combine with |.
+//
+// Reference: https://en.cppreference.com/w/cpp/io/basic_ifstream
+// -----------------------------------------------------------------------------
+
+#include <filesystem>
 #include <fstream>
-#include <iostream>
+#include <string>
+
+#include "lab/Example.h"
+#include "lab/Logger.h"
 
 namespace {
 
-constexpr inline std::string_view kTestFileName = "fileio_test.csv";
+namespace fs = std::filesystem;
 
-void fileInput() {
-  std::ifstream in_file{std::string{kTestFileName}};
-  if (!in_file.is_open()) {
-    std::cerr << "Cannot open file: " << kTestFileName << " \n";
-  }
-
-  std::string input_str{};
-  std::cout << "====skip while space content====" << std::endl;
-  while (
-      in_file >>
-      input_str) {  //  Note that ifstream returns a 0 if we’ve reached the end of the file (EOF)
-    std::cout << input_str;
-  }
-  std::cout << "========" << std::endl;
-  std::cout << "====full content====" << std::endl;
-
-  // not skip whitespace
-  in_file.close();
-  in_file.open(std::string{kTestFileName});  // explicitly call open()
-  // The otherway to do this
-  /**
-   * inFile.clear();                 // clear eof/fail flags
-   * inFile.seekg(0);                // rewind
-   */
-
-  input_str.clear();
-  while (std::getline(in_file, input_str)) {
-    std::cout << input_str << std::endl;
-  }
-  std::cout << "========" << std::endl;
-
-  in_file.close();
-}
-
-void fileOutput() {
-  std::ofstream outfile{std::string{
-      kTestFileName}};  // only output stream creates new file if not exist
-  if (!outfile || !outfile.is_open()) {
-    std::cerr << "Cannot open file: " << kTestFileName << " \n";
+void writeFile(const fs::path& path) {
+  LOG_SECTION("Writing");
+  std::ofstream out(path);  // text mode, truncates an existing file
+  if (!out) {
+    LOG_S("cannot open " << path << " for writing");
     return;
   }
+  out << "time_s,gsr_value\n";
+  out << "0.000,45.27\n";
+  out << "0.005,41.69\n";
+  out.put('#');  // a single character
+  out << " end of data\n";
+  LOG_S("wrote 4 lines to " << path.filename().string());
+}  // `out` is closed by its destructor
 
-  // Put bytes data to the file
-  // put string
-  std::string elf_bytes{
-      R"""(
-        time_s,
-        gsr_value 0.0, 45.27761157741693 0.005, 41.69912812397066 0.01,
-        38.13110177547114 0.015, 35.32162785580394 0.02,
-        31.75617843363382 0.025, 28.352875321528607 0.03,
-        25.23210282654006 0.035, 21.769688905641132 0.04,
-        17.99031153059391 0.045, 15.073732055666543 0.05,
-        15.13550182371759 0.055, 14.69547985289048 0.06,
-        14.867397107985468 0.065, 14.982082556093832 0.07,
-        14.893751010484861 0.075, 14.877034044202343 0.08,
-        14.820590581790071 0.085, 15.1065350504897 0.09,
-        15.152287796727098 0.095, 14.764395300078201 0.1,
-        15.118189654760348 0.105, 15.473255351586635 0.11,
-        14.913896402347113
-    \n )"""};
-  outfile << elf_bytes;
-
-  elf_bytes =
-      "0x0 0x0"
-      "0x0 0x0"
-      "0x0 0x0";
-  outfile << elf_bytes;
-
-  elf_bytes =
-      "0xF 0xA \
-              0xE 0xB \
-              0x0 0x0";
-  outfile << elf_bytes;
-
-  outfile.put('E');  // put char
-  outfile.close();
+void appendToFile(const fs::path& path) {
+  LOG_SECTION("Appending");
+  std::ofstream out(path, std::ios::app);  // keep the content, write at the end
+  out << "0.010,38.13\n";
+  LOG("appended one line with std::ios::app");
 }
 
-void fileRemove() {
-  std::remove(std::string{kTestFileName}.c_str());
-  std::ifstream ifile{std::string{kTestFileName}};
-  if (ifile) {
-    std::cerr << "Cannot delete file: " << kTestFileName << " \n";
-    return;
+void readWordByWord(const fs::path& path) {
+  LOG_SECTION("Reading with >> (skips whitespace)");
+  std::ifstream in(path);
+  std::string word;
+  int words = 0;
+  while (in >> word) {  // the stream converts to false at end of file or error
+    ++words;
+  }
+  LOG_S("operator>> read " << words << " whitespace-separated words");
+}
+
+void readLineByLine(const fs::path& path) {
+  LOG_SECTION("Reading with std::getline (keeps whitespace)");
+  std::ifstream in(path);
+  std::string line;
+  int number = 0;
+  while (std::getline(in, line)) {
+    LOG_S("  line " << ++number << ": " << line);
   }
 
-  std::cout << "Delete file: " << kTestFileName << " \n";
+  // After reaching the end the stream is in the eof/fail state. To read the
+  // file again, clear the flags and rewind (or close and reopen it).
+  in.clear();
+  in.seekg(0);
+  std::getline(in, line);
+  LOG_S("after clear() + seekg(0), the first line again: " << line);
 }
 
 void run() {
-  // Create and produce data to a file
-  fileOutput();
+  const fs::path path = fs::temp_directory_path() / "cpplab_fileio_test.csv";
+  writeFile(path);
+  appendToFile(path);
+  readWordByWord(path);
+  readLineByLine(path);
 
-  // Load the created file as input and display its content
-  fileInput();
+  LOG_SECTION("Removing");
+  const bool removed =
+      fs::remove(path);  // or std::remove(path.c_str()) from <cstdio>
+  LOG_S("removed " << path.filename().string() << ": " << std::boolalpha
+                   << removed);
 
-  // remove the file
-  fileRemove();
+  std::ifstream missing(path);
+  LOG_S("opening a missing file -> is_open() = " << std::boolalpha
+                                                 << missing.is_open());
 }
+
 }  // namespace
 
-#include "ExampleRegistry.h"
-
-class FileIO : public IExample {
- public:
-  std::string group() const override { return "core/filehandle"; }
-  std::string name() const override { return "FileIO"; }
-  std::string description() const override { return ""; }
-  void execute() override { run(); }
-};
-
-REGISTER_EXAMPLE(FileIO);
+LAB_EXAMPLE("FileIO", "write, append and read text files with fstream") {
+  run();
+}

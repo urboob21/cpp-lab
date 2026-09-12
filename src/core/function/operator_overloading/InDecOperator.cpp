@@ -1,74 +1,80 @@
-// cppcheck-suppress-file [postfixOperator]
+// -----------------------------------------------------------------------------
+// Overloading ++ and -- (prefix and postfix)
+//
+//   T& operator++();     prefix  ++x : increment, return the object itself
+//   T  operator++(int);  postfix x++ : copy, increment, return the OLD copy
+//
+// The unused `int` parameter only tells the compiler which one is postfix.
+// Postfix must create a copy, so prefer ++it in loops over iterators and other
+// objects that are expensive to copy.
+//
+// Reference: https://en.cppreference.com/w/cpp/language/operator_incdec
+// -----------------------------------------------------------------------------
 
-// prefix/posfix
-#include "ExampleRegistry.h"
-#include "Logger.h"
+#include "lab/Example.h"
+#include "lab/Logger.h"
 
 namespace {
-class Cents {
+
+class Counter {
  public:
-  explicit Cents(int cents) : cents_{cents} {}
-  int getCents() const { return cents_; }
+  explicit Counter(int value) : value_{value} {}
+  int value() const { return value_; }
 
-  // pre: inc -> return new
-  Cents& operator++();
-  Cents& operator--();
+  Counter& operator++() {  // prefix
+    LOG_FUNC();
+    ++value_;
+    return *this;
+  }
 
-  // return old -> inc
-  Cents operator++(int);
-  Cents operator--(int);
+  Counter& operator--() {  // prefix
+    LOG_FUNC();
+    --value_;
+    return *this;
+  }
+
+  Counter operator++(int) {  // postfix
+    LOG_FUNC();
+    Counter old{*this};  // 1. remember the old value
+    ++(*this);           // 2. reuse the prefix version
+    return old;          // 3. return the old value
+  }
+
+  Counter operator--(int) {  // postfix
+    LOG_FUNC();
+    Counter old{*this};
+    --(*this);
+    return old;
+  }
 
  private:
-  int cents_{};
+  int value_;
 };
-
-/// @brief pre ++x
-Cents& Cents::operator++() {
-  LOG("");
-  ++cents_;
-  return *this;
-}
-
-/// @brief pre ++x
-Cents& Cents::operator--() {
-  LOG("");
-  --cents_;
-  return *this;
-}
-
-/// @brief pos x++
-Cents Cents::operator++(int) {
-  LOG("");
-  Cents temp{*this};  // create copy
-  ++(*this);          // increase origin
-  return temp;        // return old
-}
-
-/// @brief pos x--
-Cents Cents::operator--(int) {
-  LOG("");
-  Cents temp{*this};
-  --(*this);
-  return temp;
-}
 
 void run() {
-  Cents cent{25};
-  cent++;
-  ++cent;
-  cent--;
-  --cent;
-  LOG_S(cent.getCents());
+  LOG_SECTION("Prefix vs postfix");
+  Counter counter{25};
+
+  const int prefix_result = (++counter).value();
+  LOG_S("++counter returned " << prefix_result << ", counter is "
+                              << counter.value());
+
+  const int postfix_result = (counter++).value();
+  LOG_S("counter++ returned " << postfix_result << ", counter is "
+                              << counter.value());
+
+  --counter;
+  counter--;
+  LOG_S("after --counter and counter--: " << counter.value());
+
+  LOG_SECTION("Prefix can be chained, postfix returns a temporary");
+  ++ ++counter;  // both increments apply to `counter`
+  LOG_S("++ ++counter -> " << counter.value());
 }
+
 }  // namespace
 
-class InDecOperator : public IExample {
- public:
-  std::string group() const override { return "core/overloading_operator"; }
-  std::string name() const override { return "InDecOperator"; }
-  std::string description() const override { return ""; }
-
-  void execute() override { run(); }
-};
-
-REGISTER_EXAMPLE(InDecOperator);
+LAB_EXAMPLE("InDecOperator",
+            "prefix and postfix ++/--, why ++it is preferred") {
+  run();
+}

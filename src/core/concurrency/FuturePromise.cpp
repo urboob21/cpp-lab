@@ -1,121 +1,115 @@
+// -----------------------------------------------------------------------------
+// std::future, std::async, std::promise, std::packaged_task
+//
+// A future is a handle to a value (or exception) that will be available later.
+//
+//   std::async          : "run this function and give me the result later".
+//                         The simplest option - prefer it.
+//   std::promise        : manually set the value from any thread.
+//   std::packaged_task  : wraps a callable so its result goes into a future.
+//
+// Notes:
+//   - future.get() blocks until the result is ready and can be called once.
+//   - An exception thrown by the task is re-thrown by get().
+//   - std::launch::async forces a new thread; the default policy may defer
+//     the call until get() is invoked.
+//
+// Reference: https://en.cppreference.com/w/cpp/thread/future
+// -----------------------------------------------------------------------------
+
 #include <chrono>
 #include <future>
-#include <string>
+#include <stdexcept>
 #include <thread>
+#include <utility>
 
-#include "ExampleRegistry.h"
-#include "Logger.h"
+#include "lab/Example.h"
+#include "lab/Logger.h"
 
 namespace {
 
-// Simulated heavy work
-int heavy_work() {
-  LOG("Begin (2s)");
-  std::this_thread::sleep_for(std::chrono::seconds(2));
-  LOG("End");
+using std::chrono::milliseconds;
+using std::chrono::steady_clock;
+
+/// Simulates a slow computation.
+int heavyWork() {
+  LOG("heavyWork: started (300 ms)");
+  std::this_thread::sleep_for(milliseconds(300));
+  LOG("heavyWork: done");
   return 1000;
 }
 
-// Shared helper to simulate main thread work
-void do_other_work(std::chrono::steady_clock::time_point start) {
-  for (int i = 1; i <= 4; ++i) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(400));
-    auto now = std::chrono::steady_clock::now();
-    auto elapsed =
-        std::chrono::duration_cast<std::chrono::milliseconds>(now - start)
-            .count();
-    LOG("doing other work... " + std::to_string(elapsed) + " ms");
+/// Simulates the caller doing something useful while it waits.
+void doOtherWork(steady_clock::time_point start) {
+  for (int step = 1; step <= 3; ++step) {
+    std::this_thread::sleep_for(milliseconds(80));
+    const auto elapsed =
+        std::chrono::duration_cast<milliseconds>(steady_clock::now() - start);
+    LOG_S("caller: other work, step " << step << " at " << elapsed.count()
+                                      << " ms");
+  }
+}
+
+void asyncExample() {
+  LOG_SECTION("std::async");
+  const auto start = steady_clock::now();
+
+  std::future<int> future = std::async(std::launch::async, heavyWork);
+  doOtherWork(start);
+
+  const int result = future.get();  // waits for heavyWork to finish
+  const auto total =
+      std::chrono::duration_cast<milliseconds>(steady_clock::now() - start);
+  LOG_S("result = " << result << ", total " << total.count()
+                    << " ms (work ran in parallel, not 300 + 240 ms)");
+}
+
+void promiseExample() {
+  LOG_SECTION("std::promise + std::thread");
+
+  std::promise<int> promise;
+  std::future<int> future = promise.get_future();
+
+  // The promise is moved into the thread; the future stays with the caller.
+  std::thread worker(
+      [p = std::move(promise)]() mutable { p.set_value(heavyWork()); });
+
+  LOG_S("main: waiting, result = " << future.get());
+  worker.join();
+}
+
+void packagedTaskExample() {
+  LOG_SECTION("std::packaged_task");
+
+  std::packaged_task<int(int, int)> task([](int a, int b) { return a * b; });
+  std::future<int> future = task.get_future();
+
+  std::thread worker(std::move(task), 6, 7);
+  LOG_S("6 * 7 = " << future.get());
+  worker.join();
+}
+
+void exceptionExample() {
+  LOG_SECTION("Exceptions travel through the future");
+
+  std::future<int> future = std::async(std::launch::async, []() -> int {
+    throw std::runtime_error("failure inside the task");
+  });
+
+  try {
+    const int value = future.get();  // re-throws the task's exception here
+    LOG_S("unexpected value " << value);
+  } catch (const std::exception& e) {
+    LOG_S("caught in the caller: " << e.what());
   }
 }
 
 }  // namespace
 
-/**
- * @brief std::async example (high-level async)
- * Prefer to implement this - run a task and give me the result later
- */
-namespace async_example {
-
-void run() {
-  LOG("Begin");
-  auto start = std::chrono::steady_clock::now();
-
-  // Launch async task (guaranteed new thread)
-  std::future<int> fut = std::async(std::launch::async, heavy_work);
-
-  LOG("launched");
-  do_other_work(start);
-
-  // Wait and get result
-  int result = fut.get();
-
-  auto end = std::chrono::steady_clock::now();
-  auto total =
-      std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
-          .count();
-
-  LOG("result = " + std::to_string(result));
-  LOG("total time = " + std::to_string(total) + " ms");
-  LOG("End");
+LAB_EXAMPLE("FuturePromise",
+            "std::async, std::promise, std::packaged_task and exceptions") {
+  asyncExample();
+  promiseExample();
+  packagedTaskExample();
+  exceptionExample();
 }
-
-}  // namespace async_example
-
-/**
- * @brief std::promise + std::thread example (manual control)
- */
-namespace promise_example {
-
-void worker(std::promise<int> prom) {
-  int result = heavy_work();
-  prom.set_value(result);
-}
-
-void run() {
-  LOG("Begin");
-  auto start = std::chrono::steady_clock::now();
-
-  // Create promise/future pair
-  std::promise<int> prom;
-  std::future<int> fut = prom.get_future();
-
-  // Launch thread manually
-  std::thread t(worker, std::move(prom));
-
-  LOG("launched");
-
-  do_other_work(start);
-
-  // Wait and get result
-  int result = fut.get();
-
-  auto end = std::chrono::steady_clock::now();
-  auto total =
-      std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
-          .count();
-
-  LOG("result = " + std::to_string(result));
-  LOG("total time = " + std::to_string(total) + " ms");
-
-  t.join();
-
-  LOG("End");
-}
-
-}  // namespace promise_example
-
-class FuturePromise : public IExample {
- public:
-  std::string group() const override { return "core/concurrency"; }
-  std::string name() const override { return "FuturePromise"; }
-  std::string description() const override {
-    return "The examples for <future>";
-  }
-
-  void execute() override {
-    async_example::run();
-    promise_example::run();
-  }
-};
-
-REGISTER_EXAMPLE(FuturePromise);

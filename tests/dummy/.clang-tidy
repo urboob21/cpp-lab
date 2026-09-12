@@ -1,0 +1,5 @@
+---
+# tests/dummy holds scratch files that reproduce third-party code as it is
+# written upstream. They are not part of the build, and reformatting them to
+# this project's conventions would destroy that fidelity, so no check runs here.
+Checks: "-*"

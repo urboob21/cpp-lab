@@ -1,127 +1,112 @@
-// cppcheck-suppress-file [functionStatic]
-#include <iostream>
-#include "ExampleRegistry.h"
+// -----------------------------------------------------------------------------
+// Virtual base classes and the diamond problem
+//
+//          PoweredDevice
+//           ^         ^
+//           |         |
+//       Scanner     Printer
+//           ^         ^
+//           |         |
+//             Copier
+//
+// With plain inheritance a Copier contains TWO PoweredDevice sub-objects, so
+// the base is constructed twice and `PoweredDevice&` conversions are ambiguous.
+// `virtual` inheritance shares one PoweredDevice sub-object. The MOST DERIVED
+// class (Copier) is then responsible for constructing it.
+//
+// Reference: https://www.learncpp.com/cpp-tutorial/virtual-base-classes/
+// -----------------------------------------------------------------------------
+
+#include "lab/Example.h"
+#include "lab/Logger.h"
+
 namespace {
 
 namespace problem {
+
 class PoweredDevice {
  public:
-  PoweredDevice() { std::cout << "Powered Device created\n"; }
-  ~PoweredDevice() { std::cout << "Powered Device destroyed\n"; }
+  explicit PoweredDevice(int watts) {
+    LOG_S("  PoweredDevice(" << watts << " W)");
+  }
 };
 
 class Scanner : public PoweredDevice {
  public:
-  Scanner() { std::cout << "Scanner created\n"; }
-  ~Scanner() { std::cout << "Scanner destroyed\n"; }
-
-  void start() { std::cout << "Scanner started\n"; }
+  Scanner() : PoweredDevice{10} { LOG("  Scanner()"); }
+  void start() const { LOG("  Scanner::start"); }
 };
 
 class Printer : public PoweredDevice {
  public:
-  Printer() { std::cout << "Printer created\n"; }
-  ~Printer() { std::cout << "Printer destroyed\n"; }
-
-  void start() { std::cout << "Printer started\n"; }
+  Printer() : PoweredDevice{20} { LOG("  Printer()"); }
+  void start() const { LOG("  Printer::start"); }
 };
 
 class Copier : public Scanner, public Printer {
  public:
-  Copier() { std::cout << "Copier created\n"; }
-  ~Copier() { std::cout << "Copier destroyed\n"; }
+  Copier() { LOG("  Copier()"); }
 };
 
 void run() {
-  std::cout << "\n---Problem---\n";
-  Copier c{};
-  std::cout << "\n";
-  c.Scanner::start();
-  c.Printer::start();
-  std::cout << "\n";
-  // Output:
-  // Powered Device created <-- multiple "instances" of the Powered Device appearing in an inheritance hierarchy
-  // Scanner created
-  // Powered Device created <--
-  // Printer created
-  // Copier created
+  LOG_SECTION("Problem: plain multiple inheritance");
+  const Copier copier;
+  LOG("  -> PoweredDevice was constructed TWICE");
 
-  // Scanner started
-  // Printer started
-  // Copier destroyed
-  // Printer destroyed
-  // Powered Device destroyed
-  // Scanner destroyed
-  // Powered Device destroyed
+  // copier.start();                          // error: ambiguous
+  // PoweredDevice& device = copier;          // error: ambiguous base
+  copier.Scanner::start();  // must name the path explicitly
+  copier.Printer::start();
+  LOG_S("  sizeof(Copier) = " << sizeof(Copier));
 }
 
 }  // namespace problem
 
-namespace virtual_base_classes {
+namespace virtual_inheritance {
+
 class PoweredDevice {
  public:
-  PoweredDevice() { std::cout << "Powered Device created\n"; }
-  ~PoweredDevice() { std::cout << "Powered Device destroyed\n"; }
+  explicit PoweredDevice(int watts) {
+    LOG_S("  PoweredDevice(" << watts << " W)");
+  }
 };
 
 class Scanner : public virtual PoweredDevice {
  public:
-  Scanner() { std::cout << "Scanner created\n"; }
-  ~Scanner() { std::cout << "Scanner destroyed\n"; }
-
-  void start() { std::cout << "Scanner started\n"; }
+  // This initializer is ignored when a Scanner is part of a Copier.
+  Scanner() : PoweredDevice{10} { LOG("  Scanner()"); }
+  void start() const { LOG("  Scanner::start"); }
 };
 
 class Printer : public virtual PoweredDevice {
  public:
-  Printer() { std::cout << "Printer created\n"; }
-  ~Printer() { std::cout << "Printer destroyed\n"; }
-
-  void start() { std::cout << "Printer started\n"; }
+  Printer() : PoweredDevice{20} { LOG("  Printer()"); }
+  void start() const { LOG("  Printer::start"); }
 };
 
 class Copier : public Scanner, public Printer {
  public:
-  Copier() { std::cout << "Copier created\n"; }
-  ~Copier() { std::cout << "Copier destroyed\n"; }
+  // The most derived class constructs the shared virtual base.
+  Copier() : PoweredDevice{30} { LOG("  Copier()"); }
 };
 
 void run() {
-  std::cout << "\n---Solved by Virtual Base Class---\n";
-  // The most derived class is responsible for constructing the virtual base class (Copier)
-  Copier c{};
-  std::cout << "\n";
-  c.Scanner::start();
-  c.Printer::start();
-  std::cout << "\n";
-  // Output:
-  // Powered Device created <-- there is only one base object
-  // Scanner created
-  // Printer created
-  // Copier created
+  LOG_SECTION("Solution: virtual inheritance");
+  const Copier copier;
+  LOG("  -> ONE PoweredDevice, constructed by Copier with 30 W");
 
-  // Scanner started
-  // Printer started
-
-  // Copier destroyed
-  // Printer destroyed
-  // Scanner destroyed
-  // Powered Device destroyed
+  [[maybe_unused]] const PoweredDevice& device = copier;  // no longer ambiguous
+  copier.Scanner::start();
+  copier.Printer::start();
+  LOG_S("  sizeof(Copier) = " << sizeof(Copier)
+                              << " (virtual bases add hidden pointers)");
 }
-}  // namespace virtual_base_classes
+
+}  // namespace virtual_inheritance
+
 }  // namespace
 
-class VirtualBase : public IExample {
- public:
-  std::string group() const override { return "core/class"; };
-
-  std::string name() const override { return "VirtualBase"; };
-  std::string description() const override { return "VirtualBase examples"; };
-
-  void execute() override {
-    problem::run();
-    virtual_base_classes::run();
-  };
-};
-
-REGISTER_EXAMPLE(VirtualBase);
+LAB_EXAMPLE("VirtualBase", "the diamond problem and virtual inheritance") {
+  problem::run();
+  virtual_inheritance::run();
+}

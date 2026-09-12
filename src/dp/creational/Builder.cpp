@@ -1,150 +1,219 @@
-// cppcheck-suppress-file [functionStatic]
+// -----------------------------------------------------------------------------
+// Builder (creational pattern)
+//
+// Constructs a complex object step by step. The same construction process can
+// create different representations.
+//
+// Problem: a constructor with many (often optional) parameters -
+//   House(walls, doors, windows, roof, garage, pool, garden, ...)
+// is hard to read and easy to call with arguments in the wrong order.
+//
+// Participants:
+//   Product          House
+//   Builder          HouseBuilder interface: one method per step
+//   ConcreteBuilder  WoodenHouseBuilder, StoneHouseBuilder
+//   Director         defines the ORDER of steps for common configurations
+//
+// The second part shows the "fluent builder" that is common in C++ code:
+// chained setters and a build() that validates the result.
+//
+// UML: docs/uml/dp/creational_builder.drawio.svg
+// -----------------------------------------------------------------------------
 
-// Flow in this file:
-//   1. Define the product being built        -> Product (parts list)
-//   2. Define a builder interface            -> IBuilder (produce_part_N / build)
-//   3. Share common builder state            -> AbstractBuilder (reset / product_)
-//   4. Implement concrete builders           -> SimpleBuilder / ComplexBuilder
-//   5. Client chains steps, then build()     -> same steps, different representations
-
+#include <map>
 #include <memory>
-#include <ostream>
-#include <sstream>
+#include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
-#include "Logger.h"
 
-#include "ExampleRegistry.h"
+#include "lab/Example.h"
+#include "lab/Logger.h"
 
 namespace {
-namespace builder_pattern {
-class Product {
+
+namespace classic {
+
+/// Product.
+class House {
+ public:
+  void addPart(std::string part) { parts_.push_back(std::move(part)); }
+
+  std::string describe() const {
+    std::string text;
+    for (const std::string& part : parts_) {
+      text += (text.empty() ? "" : ", ") + part;
+    }
+    return text.empty() ? "(empty)" : text;
+  }
+
  private:
   std::vector<std::string> parts_;
+};
 
+/// Builder interface.
+class HouseBuilder {
  public:
-  void add_part(const std::string& part) { parts_.push_back(part); }
+  virtual ~HouseBuilder() = default;
+  virtual void buildWalls() = 0;
+  virtual void buildRoof() = 0;
+  virtual void buildGarage() = 0;
+  virtual void buildPool() = 0;
 
-  void print() const {
-    LOG("Product parts: ");
-    std::ostringstream oss;
-    for (size_t i = 0; i < parts_.size(); ++i) {
-      oss << parts_[i];
-      if (i + 1 < parts_.size()) {
-        oss << ", ";
-      }
-    }
-    LOG(oss.str());
+  /// Hands out the finished product and starts a fresh one, so the builder
+  /// can be reused safely.
+  std::unique_ptr<House> result() {
+    auto finished = std::move(house_);
+    house_ = std::make_unique<House>();
+    return finished;
   }
-};
 
-/// @class Builder Interface
-/// @brief specifics methods for creating the different parts
-class IBuilder {
- public:
-  virtual ~IBuilder() = default;
-  virtual IBuilder& reset() = 0;
-  virtual IBuilder& produce_part_1() = 0;
-  virtual IBuilder& produce_part_2() = 0;
-  virtual IBuilder& produce_part_3() = 0;
-
-  virtual std::unique_ptr<Product> build() = 0;
-};
-
-class AbstractBuilder : public IBuilder {
  protected:
-  std::unique_ptr<Product> product_;
+  House& house() { return *house_; }
 
- public:
-  explicit AbstractBuilder() : product_{std::make_unique<Product>()} {}
-
-  AbstractBuilder(const AbstractBuilder&) = delete;
-  AbstractBuilder& operator=(const AbstractBuilder&) = delete;
-
-  AbstractBuilder(AbstractBuilder&&) = default;
-  AbstractBuilder& operator=(AbstractBuilder&&) = default;
-
-  /// @brief the child classes are no longer override this function
-  IBuilder& reset() final {
-    product_ = std::make_unique<Product>();
-    return *this;
-  }
+ private:
+  std::unique_ptr<House> house_ = std::make_unique<House>();
 };
 
-/// @class Concrete Builder
-class SimpleBuilder : public AbstractBuilder {
+class WoodenHouseBuilder : public HouseBuilder {
  public:
-  IBuilder& produce_part_1() override {
-    product_->add_part("PART1");
-    return *this;
-  }
-
-  IBuilder& produce_part_2() override {
-    product_->add_part("PART2");
-    return *this;
-  }
-
-  IBuilder& produce_part_3() override {
-    product_->add_part("PART3");
-    return *this;
-  }
-
-  std::unique_ptr<Product> build() override { return std::move(product_); }
+  void buildWalls() override { house().addPart("wooden walls"); }
+  void buildRoof() override { house().addPart("shingle roof"); }
+  void buildGarage() override { house().addPart("wooden carport"); }
+  void buildPool() override { house().addPart("above-ground pool"); }
 };
 
-class ComplexBuilder : public AbstractBuilder {
+class StoneHouseBuilder : public HouseBuilder {
  public:
-  IBuilder& produce_part_1() override {
-    product_->add_part("PART_1-X9a7Fq!2@Lm#48Z");
-    return *this;
+  void buildWalls() override { house().addPart("stone walls"); }
+  void buildRoof() override { house().addPart("clay tile roof"); }
+  void buildGarage() override { house().addPart("stone garage"); }
+  void buildPool() override { house().addPart("in-ground pool"); }
+};
+
+/// Director: knows the recipes, not the materials.
+class Director {
+ public:
+  static void buildMinimal(HouseBuilder& builder) {
+    builder.buildWalls();
+    builder.buildRoof();
   }
 
-  IBuilder& produce_part_2() override {
-    product_->add_part("PART_2-X9a7Fq!2@Lm#48Z");
-    return *this;
+  static void buildLuxury(HouseBuilder& builder) {
+    builder.buildWalls();
+    builder.buildRoof();
+    builder.buildGarage();
+    builder.buildPool();
   }
-
-  IBuilder& produce_part_3() override {
-    product_->add_part("PART_3-X9a7Fq!2@Lm#48Z");
-    return *this;
-  }
-
-  std::unique_ptr<Product> build() override { return std::move(product_); }
 };
 
 void run() {
-  auto client_code = [](IBuilder* const builder) {
-    // product 1
-    auto p1 =
-        (*builder).produce_part_1().produce_part_2().produce_part_3().build();
-    p1->print();
+  LOG_SECTION("Director + builders: same steps, different representations");
+  WoodenHouseBuilder wood;
+  StoneHouseBuilder stone;
 
-    // product 2
-    auto p2 = (*builder).reset().produce_part_1().build();
-    p2->print();
-  };
+  Director::buildMinimal(wood);
+  LOG_S("  minimal wooden house: " << wood.result()->describe());
 
-  {
-    LOG("ConcreteBuilder: Simple");
-    auto builder = std::make_unique<SimpleBuilder>();
-    client_code(builder.get());
-  }
-  {
-    LOG("ConcreteBuilder: Complex");
-    IBuilder* builder = new ComplexBuilder();
-    client_code(builder);
-    delete builder;
-  }
+  Director::buildLuxury(wood);  // the builder was reset by result()
+  LOG_S("  luxury wooden house : " << wood.result()->describe());
+
+  Director::buildLuxury(stone);
+  LOG_S("  luxury stone house  : " << stone.result()->describe());
+
+  stone.buildWalls();  // clients can also drive a builder without a director
+  stone.buildPool();
+  LOG_S("  custom stone house  : " << stone.result()->describe());
 }
-}  // namespace builder_pattern
-}  // namespace
 
-class BuilderExample : public IExample {
+}  // namespace classic
+
+namespace fluent {
+
+class HttpRequest {
  public:
-  std::string group() const override { return "dp/creational"; }
-  std::string name() const override { return "Builder"; }
-  std::string description() const override { return "Builder Pattern Example"; }
-  void execute() override { builder_pattern::run(); }
+  class Builder;
+
+  std::string describe() const {
+    std::string text = method_ + " " + url_;
+    for (const auto& [name, value] : headers_) {
+      text += "\n      ";
+      text += name;
+      text += ": ";
+      text += value;
+    }
+    if (!body_.empty()) {
+      text += "\n      body: " + body_;
+    }
+    return text;
+  }
+
+ private:
+  HttpRequest() = default;  // only the Builder can create requests
+  std::string method_ = "GET";
+  std::string url_;
+  std::map<std::string, std::string> headers_;
+  std::string body_;
 };
 
-REGISTER_EXAMPLE(BuilderExample);
+class HttpRequest::Builder {
+ public:
+  explicit Builder(std::string url) { request_.url_ = std::move(url); }
+
+  // Each setter returns *this, so calls can be chained.
+  Builder& method(std::string method) {
+    request_.method_ = std::move(method);
+    return *this;
+  }
+  Builder& header(std::string name, std::string value) {
+    request_.headers_[std::move(name)] = std::move(value);
+    return *this;
+  }
+  Builder& body(std::string body) {
+    request_.body_ = std::move(body);
+    return *this;
+  }
+
+  /// Validates before handing out the product.
+  HttpRequest build() const {
+    if (!request_.url_.starts_with("http")) {
+      throw std::invalid_argument("URL must start with http: " + request_.url_);
+    }
+    if (request_.method_ == "GET" && !request_.body_.empty()) {
+      throw std::invalid_argument("a GET request must not have a body");
+    }
+    return request_;
+  }
+
+ private:
+  HttpRequest request_;
+};
+
+void run() {
+  LOG_SECTION("Fluent builder with validation");
+  const HttpRequest request =
+      HttpRequest::Builder("https://api.example.com/users")
+          .method("POST")
+          .header("Content-Type", "application/json")
+          .header("Authorization", "Bearer token")
+          .body(R"({"name": "Ada"})")
+          .build();
+  LOG_S("  " << request.describe());
+
+  try {
+    HttpRequest::Builder("https://example.com").body("oops").build();
+  } catch (const std::invalid_argument& e) {
+    LOG_S("  build() rejected an invalid request: " << e.what());
+  }
+}
+
+}  // namespace fluent
+
+}  // namespace
+
+LAB_EXAMPLE("Builder",
+            "step-by-step construction with builders, a director and a fluent "
+            "builder") {
+  classic::run();
+  fluent::run();
+}

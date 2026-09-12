@@ -1,90 +1,138 @@
-// cppcheck-suppress-file [unreadVariable,unusedVariable]
+// -----------------------------------------------------------------------------
+// std::array - a fixed-size array with a container interface
+//
+//   template<class T, std::size_t N> struct array;
+//
+//   - The size is part of the type and fixed at compile time; the elements are
+//     stored inline (no heap allocation).
+//   - Unlike a C array it never decays to a pointer, knows its size(), and can
+//     be copied, compared, and returned from functions.
+//   - operator[] is unchecked; at() throws std::out_of_range.
+//
+// Reference: https://en.cppreference.com/w/cpp/container/array
+// -----------------------------------------------------------------------------
 
-/**
- * std::array
- *  
- * <array>
- *  template< class T, std::size_t N > struct array;
- */
-#include <array>  // for std::array
-#include <iostream>
+#include <algorithm>
+#include <array>
+#include <numeric>
+#include <stdexcept>
+#include <string>
+
+#include "lab/Example.h"
+#include "lab/Logger.h"
 
 namespace {
-void run() {
-  std::cout << "\n--- std::array Example ---\n";
-  // 1) Init
-  std::array<int, 3> m_array = {9, 100, 0};
-  // m_array = {1,2,3,5,6}; // ERROR
 
-  std::array<int, 3> a2{3, 4, 5};
-  std::array<int, 3> a3;     // garbage values for a3[0]-> a4[]
-  std::array<int, 3> a4{};   // all elements have value 0
-  std::array<int, 3> a5{1};  // a5[0] = 0, others elements have value 0
-
-  // 2) Element access
-  std::cout << m_array.front() << std::endl;
-  std::cout << m_array.back() << std::endl;
-
-  int* ptr_arr = m_array.data();
-  std::cout << *(ptr_arr++) << " ";
-  std::cout << *(ptr_arr++) << " ";
-  std::cout << *(ptr_arr++) << " ";
-  std::cout << std::endl;
-
-  // raw for loop
-  for (std::size_t i = 0; i < m_array.size(); ++i) {
-    std::cout << m_array.at(i) << " ";
+template <typename Range>
+std::string join(const Range& range) {
+  std::string text;
+  for (const auto& element : range) {
+    text += std::to_string(element) + " ";
   }
-
-  std::cout << std::endl;
-
-  // for range
-  for (const int& e : m_array) {
-    std::cout << e << " ";
-  }
-  std::cout << std::endl;
-
-  // 3) Iterators
-  std::array<int, 3>::iterator it = m_array.begin();
-  std::array<int, 3>::iterator itEnd = m_array.end();
-  for (; it != itEnd; ++it) {
-    std::cout << *it << " ";
-  }
-  std::cout << std::endl;
-
-  auto r_it = m_array.rbegin();
-  auto r_it_end = m_array.rend();
-  for (; r_it != r_it_end; r_it++) {
-    std::cout << *r_it << " ";
-  }
-  std::cout << std::endl;
-
-  // 4) Capacity
-  std::cout << m_array.max_size()
-            << std::endl;  // fixed-size => max_size = size
-  std::cout << m_array.size() << std::endl;
-  bool is_empty = m_array.empty();
-
-  // 5) Operation
-  constexpr std::size_t kXy = 4;
-  using Cell = std::array<unsigned char, 8>;
-  std::array<Cell, kXy * kXy> board;
-  board.fill({0xE2, 0x96, 0x84, 0xE2, 0x96, 0x80, 0,
-              0});  // "▄▀"; // fill means fill all 16 Cell with "▄▀"
-  //   board = {Cell{0xE2, 0x96, 0x84, 0xE2, 0x96, 0x80, 0, 0},Cell{0xE2, 0x96, 0x84, 0xE2, 0x96, 0x80, 0, 0}};
-  for (size_t count{}; Cell c : board)
-    std::cout << c.data() << ((++count % kXy) ? "" : "\n");
+  return text;
 }
+
+void initialization() {
+  LOG_SECTION("Initialization");
+  const std::array<int, 3> values{9, 100, 0};
+  const std::array<int, 3> zeros{};  // every element value-initialized: 0 0 0
+  const std::array<int, 3> partial{1};  // missing elements are zero: 1 0 0
+  [[maybe_unused]] std::array<int, 3>
+      garbage;  // ints are NOT initialized - don't read
+  const auto deduced =
+      std::array{1.5, 2.5};  // C++17 deduction: std::array<double, 2>
+  // std::array<int, 3> too_many{1, 2, 3, 4};   // error: too many initializers
+
+  LOG_S("values{9, 100, 0} -> " << join(values));
+  LOG_S("zeros{}           -> " << join(zeros));
+  LOG_S("partial{1}        -> " << join(partial));
+  LOG_S("std::array{1.5, 2.5} has size " << deduced.size());
+}
+
+void elementAccess() {
+  LOG_SECTION("Element access");
+  std::array<int, 3> values{9, 100, 0};
+  LOG_S("front() = " << values.front() << ", back() = " << values.back()
+                     << ", values[1] = " << values[1]);
+
+  const int* raw = values.data();  // pointer to the first element (C interop)
+  LOG_S("data()[2] = " << raw[2]);
+
+  try {
+    values.at(3) = 1;  // bounds-checked
+  } catch (const std::out_of_range& e) {
+    LOG_S("at(3) threw std::out_of_range: " << e.what());
+  }
+  // values[3] = 1;  // NOT checked: undefined behavior
+}
+
+void iteration() {
+  LOG_SECTION("Iteration");
+  const std::array<int, 4> values{1, 2, 3, 4};
+
+  std::string by_index;
+  for (std::size_t i = 0; i < values.size(); ++i) {
+    by_index += std::to_string(values[i]) + " ";
+  }
+  LOG_S("index loop   : " << by_index);
+  LOG_S("range-for    : " << join(values));
+
+  std::string reversed;
+  for (auto it = values.rbegin(); it != values.rend(); ++it) {
+    reversed += std::to_string(*it) + " ";
+  }
+  LOG_S("rbegin..rend : " << reversed);
+}
+
+void operations() {
+  LOG_SECTION("Operations");
+  std::array<int, 5> values{5, 3, 9, 1, 7};
+  std::sort(values.begin(), values.end());
+  LOG_S("sorted        : " << join(values));
+  LOG_S("sum           : " << std::accumulate(values.begin(), values.end(), 0));
+
+  const std::array<int, 5> copy = values;  // arrays copy like any value type
+  LOG_S("copy == values: " << std::boolalpha << (copy == values));
+
+  const auto [first, second, third, fourth, fifth] =
+      values;  // structured bindings
+  LOG_S("structured bindings: first = " << first << ", fifth = " << fifth
+                                        << " (" << second + third + fourth
+                                        << " in between)");
+
+  values.fill(0);
+  LOG_S("after fill(0) : " << join(values));
+  LOG_S("size() = max_size() = " << values.max_size()
+                                 << " (fixed at compile time)");
+}
+
+void board() {
+  LOG_SECTION("A 2D board: std::array of std::array");
+  constexpr std::size_t kSide = 4;
+  using Row = std::array<const char*, kSide>;
+  std::array<Row, kSide> cells{};
+
+  for (std::size_t row = 0; row < kSide; ++row) {
+    for (std::size_t col = 0; col < kSide; ++col) {
+      cells[row][col] = (row + col) % 2 == 0 ? "##" : "  ";
+    }
+  }
+  for (const Row& row : cells) {
+    std::string line;
+    for (const char* cell : row) {
+      line += cell;
+    }
+    LOG(line);
+  }
+}
+
 }  // namespace
 
-#include "ExampleRegistry.h"
-
-class Array : public IExample {
- public:
-  std::string group() const override { return "core/container"; }
-  std::string name() const override { return "Array"; }
-  std::string description() const override { return ""; }
-  void execute() override { run(); }
-};
-
-REGISTER_EXAMPLE(Array);
+LAB_EXAMPLE("Array",
+            "std::array: fixed-size container, access, iteration, algorithms") {
+  initialization();
+  elementAccess();
+  iteration();
+  operations();
+  board();
+}

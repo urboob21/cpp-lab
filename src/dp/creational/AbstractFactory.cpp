@@ -1,162 +1,162 @@
-// cppcheck-suppress-file [functionStatic]
-
-// Abstract Factory — create families of related products without concrete types.
+// -----------------------------------------------------------------------------
+// Abstract Factory (creational pattern)
 //
-// Flow in this file:
-//   1. Define product interfaces             -> IGdbProduct, ICMakeProduct
-//   2. Implement concrete products per OS    -> Linux / Windows / MacOs variants
-//   3. Define an abstract factory            -> IProductAbstractFactory
-//   4. Implement concrete factories          -> one factory = one matching family
-//   5. Client uses one factory for all products -> products stay consistent (same OS)
+// Creates FAMILIES of related objects without naming their concrete classes.
+// One factory produces matching products, so products from different families
+// cannot be mixed by accident.
+//
+// Example: a toolchain installer. Each operating system needs its own GDB and
+// CMake installation commands; a Linux factory only creates Linux products.
+//
+// Flow:
+//   1. Product interfaces            GdbProduct, CMakeProduct
+//   2. Concrete products per family  Linux / Windows / MacOs variants
+//   3. Abstract factory              ToolchainFactory
+//   4. One concrete factory per family
+//   5. The client receives one factory and uses it for every product
+//
+// Factory Method vs Abstract Factory: a factory method creates ONE product; an
+// abstract factory groups several factory methods for a family of products.
+//
+// UML: docs/uml/dp/creational_abstractfactory.drawio.svg
+// -----------------------------------------------------------------------------
 
 #include <memory>
-#include <string>
-#include "ExampleRegistry.h"
-#include "Logger.h"
+#include <string_view>
+
+#include "lab/Example.h"
+#include "lab/Logger.h"
 
 namespace {
-namespace abstract_factory {
 
-/// @class Product Interface
-/// @brief Declares the operations that all concrete products must implement
-class IGdbProduct {
+// 1. Product interfaces
+class GdbProduct {
  public:
-  virtual ~IGdbProduct() = default;
-  virtual void launch() const = 0;
+  virtual ~GdbProduct() = default;
+  virtual void install() const = 0;
 };
 
-/// @brief The concrete product
-class LinuxGdbProduct : public IGdbProduct {
+class CMakeProduct {
  public:
-  void launch() const override {
-    LOG("sudo apt update && sudo apt install -y gdb && gdb --version");
+  virtual ~CMakeProduct() = default;
+  virtual void install() const = 0;
+};
+
+// 2. Concrete products, one set per family
+class LinuxGdb : public GdbProduct {
+ public:
+  void install() const override {
+    LOG("    sudo apt install -y gdb && gdb --version");
+  }
+};
+class WindowsGdb : public GdbProduct {
+ public:
+  void install() const override {
+    LOG("    pacman -S mingw-w64-x86_64-gdb && gdb --version");
+  }
+};
+class MacOsGdb : public GdbProduct {
+ public:
+  void install() const override {
+    LOG("    brew install gdb && gdb --version");
   }
 };
 
-class WindowsGdbProduct : public IGdbProduct {
+class LinuxCMake : public CMakeProduct {
  public:
-  void launch() const override {
-    LOG("pacman -Syu mingw-w64-x86_64-gdb && gdb --version");
+  void install() const override {
+    LOG("    sudo apt install -y cmake && cmake --version");
+  }
+};
+class WindowsCMake : public CMakeProduct {
+ public:
+  void install() const override {
+    LOG("    pacman -S mingw-w64-x86_64-cmake && cmake --version");
+  }
+};
+class MacOsCMake : public CMakeProduct {
+ public:
+  void install() const override {
+    LOG("    brew install cmake && cmake --version");
   }
 };
 
-class MacOsGdbProduct : public IGdbProduct {
+// 3. Abstract factory
+class ToolchainFactory {
  public:
-  void launch() const override { LOG("brew install gdb && gdb --version"); }
+  virtual ~ToolchainFactory() = default;
+  virtual std::unique_ptr<GdbProduct> createGdb() const = 0;
+  virtual std::unique_ptr<CMakeProduct> createCMake() const = 0;
 };
 
-class ICMakeProduct {
+// 4. Concrete factories
+class LinuxToolchainFactory : public ToolchainFactory {
  public:
-  virtual ~ICMakeProduct() = default;
-  virtual void launch() const = 0;
-};
-
-class LinuxCMakeProduct : public ICMakeProduct {
- public:
-  void launch() const override {
-    LOG("sudo apt update && sudo apt install -y cmake && cmake --version");
+  std::unique_ptr<GdbProduct> createGdb() const override {
+    return std::make_unique<LinuxGdb>();
+  }
+  std::unique_ptr<CMakeProduct> createCMake() const override {
+    return std::make_unique<LinuxCMake>();
   }
 };
 
-class WindowsCMakeProduct : public ICMakeProduct {
+class WindowsToolchainFactory : public ToolchainFactory {
  public:
-  void launch() const override { LOG("pacman -Syu cmake && cmake --version"); }
-};
-
-class MacOsCMakeProduct : public ICMakeProduct {
- public:
-  void launch() const override {
-    LOG("\tbrew install cmake && cmake --version");
+  std::unique_ptr<GdbProduct> createGdb() const override {
+    return std::make_unique<WindowsGdb>();
   }
-};
-
-/// @class Abstract Factory
-/// @brief Provide abstract interface for creating a family of products
-class IProductAbstractFactory {
- public:
-  virtual ~IProductAbstractFactory() = default;
-  virtual std::unique_ptr<IGdbProduct> create_gdb_product() = 0;
-  virtual std::unique_ptr<ICMakeProduct> create_cmake_product() = 0;
-};
-
-/// @class Concrete Factory
-/// @brief concrete factory create a family of products and client uses
-/// one of these factories so it never has to instantiate a product object
-class WindowsProductFactory : public IProductAbstractFactory {
- public:
-  std::unique_ptr<IGdbProduct> create_gdb_product() override {
-    return std::make_unique<WindowsGdbProduct>();
-  }
-  std::unique_ptr<ICMakeProduct> create_cmake_product() override {
-    return std::make_unique<WindowsCMakeProduct>();
+  std::unique_ptr<CMakeProduct> createCMake() const override {
+    return std::make_unique<WindowsCMake>();
   }
 };
 
-class LinuxProductFactory : public IProductAbstractFactory {
+class MacOsToolchainFactory : public ToolchainFactory {
  public:
-  std::unique_ptr<IGdbProduct> create_gdb_product() override {
-    return std::make_unique<LinuxGdbProduct>();
+  std::unique_ptr<GdbProduct> createGdb() const override {
+    return std::make_unique<MacOsGdb>();
   }
-
-  std::unique_ptr<ICMakeProduct> create_cmake_product() override {
-    return std::make_unique<LinuxCMakeProduct>();
+  std::unique_ptr<CMakeProduct> createCMake() const override {
+    return std::make_unique<MacOsCMake>();
   }
 };
 
-class MacOsProductFactory : public IProductAbstractFactory {
- public:
-  std::unique_ptr<IGdbProduct> create_gdb_product() override {
-    return std::make_unique<MacOsGdbProduct>();
-  }
-
-  std::unique_ptr<ICMakeProduct> create_cmake_product() override {
-    return std::make_unique<MacOsCMakeProduct>();
-  }
-};
-
-/// @brief Factory selector
-/// static redudant inside anonymous namespace
-std::unique_ptr<IProductAbstractFactory> create_product_factory(
-    const std::string& os) {
+/// Picks the family once, e.g. from configuration. Returns nullptr if unknown.
+std::unique_ptr<ToolchainFactory> makeFactory(std::string_view os) {
   if (os == "linux") {
-    return std::make_unique<LinuxProductFactory>();
+    return std::make_unique<LinuxToolchainFactory>();
   }
   if (os == "windows") {
-    return std::make_unique<WindowsProductFactory>();
+    return std::make_unique<WindowsToolchainFactory>();
   }
   if (os == "macos") {
-    return std::make_unique<MacOsProductFactory>();
+    return std::make_unique<MacOsToolchainFactory>();
   }
-  LOG("OS not support yet - " + os);
-
   return nullptr;
 }
 
-void run() {
-  LOG("Abstract Factory Pattern Example");
-
-  auto client_code = [](IProductAbstractFactory* f) {
-    auto cmake = f->create_cmake_product();
-    auto gdb = f->create_gdb_product();
-    cmake->launch();
-    gdb->launch();
-  };
-
-  const std::string os = "linux";
-  auto factory = create_product_factory(os);
-  client_code(factory.get());
+// 5. Client code: depends only on the abstract interfaces.
+void installToolchain(const ToolchainFactory& factory) {
+  const auto cmake = factory.createCMake();
+  const auto gdb = factory.createGdb();
+  cmake->install();
+  gdb->install();  // guaranteed to belong to the same family as cmake
 }
-}  // namespace abstract_factory
+
+void run() {
+  for (const std::string_view os : {"linux", "windows", "macos", "solaris"}) {
+    LOG_SECTION(os);
+    const std::unique_ptr<ToolchainFactory> factory = makeFactory(os);
+    if (!factory) {
+      LOG_S("    no toolchain factory for '" << os << "'");
+      continue;
+    }
+    installToolchain(*factory);
+  }
+}
+
 }  // namespace
 
-class AbstractFactoryExample : public IExample {
- public:
-  std::string group() const override { return "dp/creational"; }
-  std::string name() const override { return "AbstractFactory"; }
-  std::string description() const override {
-    return "AbstractFactory Pattern Example";
-  }
-  void execute() override { abstract_factory::run(); }
-};
-
-REGISTER_EXAMPLE(AbstractFactoryExample);
+LAB_EXAMPLE("AbstractFactory",
+            "create families of related products that always match") {
+  run();
+}

@@ -1,210 +1,147 @@
-// Memento is a behavioral design pattern that lets you save and restore the
-// previous state of an object without violating encapsulation, captures and
-// externalizes an object's internal state Appicability:
-// (*)    when you want to produce snapshots of the object’s state to be able to
-// restore a previous state of the object.
-// (**)   when direct access to the object’s fields/getters/setters violates its
-// encapsulation. UML: docs/uml/patterns_behavioral_memento.drawio.svg
+// -----------------------------------------------------------------------------
+// Memento (behavioral pattern)
+//
+// Captures an object's internal state so it can be restored later, WITHOUT
+// exposing that state to the rest of the program.
+//
+// Problem: to implement undo, some other object (the history) would need to
+// read and write the editor's private fields - breaking encapsulation.
+// Solution: the editor itself creates an opaque snapshot (memento). The history
+// only stores snapshots; only the editor can look inside them.
+//
+// Use it when:
+//   - you need snapshots to undo or roll back
+//   - direct access to the fields would break encapsulation
+//
+// Participants:
+//   Originator  Editor - creates and restores mementos
+//   Memento     Editor::Snapshot - state is private, readable only by Editor
+//   Caretaker   History - keeps mementos, never inspects them
+//
+// UML: docs/uml/dp/behavioral_memento.drawio.svg
+// -----------------------------------------------------------------------------
 
-#include <cstdlib>  // for std::rand, std::srand
-#include <ctime>    // for std::time
-#include <iomanip>
-#include <iostream>
-#include <sstream>
+#include <cstddef>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "lab/Example.h"
+#include "lab/Logger.h"
+
 namespace {
-namespace memento {
-/**
- * Memento interface provides a way to retrieve the memento's metadata, such as
- * creation date or name. However, it doesn't expose the Originator's state.
- */
-class IMemento {
- public:
-  virtual ~IMemento() = default;
 
-  virtual std::string getName() const = 0;
-  virtual std::string getDate() const = 0;
-  virtual std::string getState() const = 0;
+/// Originator.
+class Editor {
+ public:
+  /// Memento: public metadata, private state.
+  class Snapshot {
+   public:
+    const std::string& label() const { return label_; }  // safe to show
+
+   private:
+    friend class Editor;  // only the originator can read the state
+    Snapshot(std::string text, std::size_t cursor, std::string label)
+        : text_{std::move(text)}, cursor_{cursor}, label_{std::move(label)} {}
+
+    std::string text_;
+    std::size_t cursor_;
+    std::string label_;
+  };
+
+  void type(const std::string& text) {
+    text_.insert(cursor_, text);
+    cursor_ += text.size();
+  }
+
+  void moveCursor(std::size_t position) {
+    cursor_ = std::min(position, text_.size());
+  }
+
+  std::unique_ptr<Snapshot> save(const std::string& label) const {
+    // std::make_unique cannot reach the private constructor, so `new` is used.
+    return std::unique_ptr<Snapshot>(new Snapshot(text_, cursor_, label));
+  }
+
+  void restore(const Snapshot& snapshot) {
+    text_ = snapshot.text_;
+    cursor_ = snapshot.cursor_;
+  }
+
+  std::string show() const {
+    std::string view = text_;
+    view.insert(cursor_, "|");  // visualize the cursor
+    return "\"" + view + "\"";
+  }
+
+ private:
+  std::string text_;
+  std::size_t cursor_{0};
 };
 
-/**
- * Concrete Memento contains the infrastructure for storing the Originator's
- * state.
- */
-class ConcreteMemento : public IMemento {
- private:
-  std::string state_;
-  std::string date_;
-  std::string name_;
-
+/// Caretaker: stores snapshots, has no idea what they contain.
+class History {
  public:
-  explicit ConcreteMemento(std::string  state) : state_{std::move(state)} {
-    // Get current time
-    std::time_t now = std::time(nullptr);
-    std::tm* t = std::localtime(&now);
+  explicit History(Editor& editor) : editor_{editor} {}
 
-    // Format date as YYYYMMDD_HHMMSS
-    std::stringstream date_ss;
-    date_ss << std::put_time(t, "%Y%m%d_%H%M%S");
-    date_ = date_ss.str();
-
-    // Append a random number for uniqueness
-    int rand_num = std::rand() % 10000;  // optional: limit size
-    std::stringstream name_ss;
-    name_ss << "me" << date_ << "_" << rand_num;
-    name_ = name_ss.str();
-  }
-
-  std::string getName() const override { return name_; };
-
-  std::string getDate() const override { return this->date_; };
-
-  std::string getState() const override { return this->state_; }
-};
-
-/**
- * Originator holds some important state that may change over time.
- * It also defines a method for saving the state inside a memento and another
- * method for restoring the state from it.
- */
-class Originator {
- private:
-  std::string state_;
-  int dummy_{};
-
-  // Simulate new state using rand
-  std::string generateRandomString(int len = 10) {
-    // String literal concatenation
-    const char alpha_num[] =
-        "0123456789"
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        "abcdefghijklmnopqrstuvwxyz";
-
-    int str_len = sizeof(alpha_num) - 1;
-    std::string ran_str;
-    for (int i = 0; i < len; ++i) {
-      ran_str += alpha_num[std::rand() % str_len];
-    }
-    dummy_++;
-    return ran_str;
-  }
-
- public:
-  explicit Originator(std::string  state) : state_{std::move(state)} {
-    std::cout << "[O]Initial state is: " << this->state_ << "\n";
-  }
-
-  void operation() {
-    std::cout << "[O]Doing something important.\n";
-    this->state_ = this->generateRandomString(30);
-    std::cout << "[O]The state has changed to: " << this->state_ << "\n";
-  }
-
-  //  Save the current state inside a memento.
-  IMemento* save() { return new ConcreteMemento(this->state_); }
-
-  // Restores the Originator's state from a memento object.
-  void restore(IMemento* mem) {
-    this->state_ = mem->getState();
-    std::cout << "[O]The state has restored to: " << this->state_ << "\n";
-
-    delete mem;
-  }
-};
-
-/**
- * The Caretaker doesn't depend on the Concrete Memento class. Therefore, it
- * doesn't have access to the originator's state, stored inside the memento. It
- * works with all mementos via the base Memento interface.
- */
-class CareTaker {
- private:
-  std::vector<IMemento*> mementos_;
-  Originator* originator_;
-
- public:
-  explicit CareTaker(Originator* const org) : originator_{org} {}
-  ~CareTaker() {
-    for (IMemento* m : mementos_) {
-      delete m;
-    }
-  }
-
-  void backup() {
-    std::cout << "[C]Saving Originator's state...\n";
-    this->mementos_.push_back(this->originator_->save());
+  void backup(const std::string& label) {
+    snapshots_.push_back(editor_.save(label));
   }
 
   void undo() {
-    if (this->mementos_.size() != 0) {
-      IMemento* mem = mementos_.back();
-      this->mementos_.pop_back();
+    if (snapshots_.empty()) {
+      LOG("  nothing to undo");
+      return;
+    }
+    const std::unique_ptr<Editor::Snapshot> snapshot =
+        std::move(snapshots_.back());
+    snapshots_.pop_back();
+    editor_.restore(*snapshot);
+    LOG_S("  undo to '" << snapshot->label() << "' -> " << editor_.show());
+  }
 
-      std::cout << "[C]Restoring state to: " << mem->getName() << "\n";
-      this->originator_->restore(mem);
+  void list() const {
+    for (const auto& snapshot : snapshots_) {
+      LOG_S("    saved: " << snapshot->label());
     }
   }
 
-  void history() const {
-    std::cout << "[C]The list of mementos:\n";
-    for (const IMemento* m : mementos_) {
-      std::cout << "\t" << m->getName() << "\n";
-    }
-  }
+ private:
+  Editor& editor_;
+  std::vector<std::unique_ptr<Editor::Snapshot>> snapshots_;
 };
-
-namespace client {
-void clientCode(Originator* const org) {
-  auto* care_taker = new CareTaker(org);
-
-  // 1
-  care_taker->backup();
-  org->operation();
-
-  // 2
-  care_taker->backup();
-  org->operation();
-
-  // 3
-  care_taker->backup();
-  org->operation();
-
-  care_taker->history();
-  care_taker->undo();
-  care_taker->undo();
-  care_taker->history();
-  care_taker->undo();
-
-  // [P] The previous state can’t be restored directly because state is
-  // private. We need a Memento to save and recover internal state safely.
-}
-}  // namespace client
 
 void run() {
-  // Gen seed
-  std::srand(static_cast<unsigned int>(std::time(nullptr)));
+  Editor editor;
+  History history{editor};
 
-  auto* origin = new Originator("Hello World");
-  client::clientCode(origin);
+  LOG_SECTION("Editing and taking snapshots");
+  history.backup("empty");
+  editor.type("Hello");
+  LOG_S("  typed           -> " << editor.show());
 
-  delete origin;
+  history.backup("after Hello");
+  editor.type(" World");
+  LOG_S("  typed           -> " << editor.show());
+
+  history.backup("after World");
+  editor.moveCursor(5);
+  editor.type(",");
+  LOG_S("  inserted comma  -> " << editor.show());
+  history.list();
+
+  LOG_SECTION("Undo");
+  history.undo();
+  history.undo();
+  history.undo();
+  history.undo();
+  // history.snapshots_[0]->text_;  // error: private - encapsulation is preserved
 }
-}  // namespace memento
+
 }  // namespace
 
-#include "ExampleRegistry.h"
-
-class MementoExample : public IExample {
- public:
-  std::string group() const override { return "dp/behavioral"; }
-  std::string name() const override { return "Memento"; }
-  std::string description() const override {
-    return "Memento Pattern Example ";
-  }
-  void execute() override { memento::run(); }
-};
-
-REGISTER_EXAMPLE(MementoExample);
+LAB_EXAMPLE("Memento",
+            "save and restore state (undo) without breaking encapsulation") {
+  run();
+}

@@ -1,11 +1,21 @@
-*build
-*private*
-.vscode/
+# Build directories (build/, build-asan/, build-release/, src/embedded/build/, ...)
+build/
+build-*/
+
+# Coverage reports (scripts/gen_coverage_*.sh)
+coverage_gcovr/
+coverage_lcov/
+
+# CTest output when ctest runs from the repository root
+Testing/
+
+# Local-only files
+/private/
+.cache/
+__pycache__/
 *Identifier
-*Testing*
-coverage_gcovr
-coverage_lcov
+
+# Editor settings: keep the shared VS Code launch and task configurations
+.vscode/*
 !.vscode/launch.json
 !.vscode/tasks.json
-.cache
-__pycache__/

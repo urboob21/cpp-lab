@@ -1,85 +1,96 @@
 #include "TCPClient.h"
 
-#include <sys/socket.h>
+#include <arpa/inet.h>   // inet_pton, htons
+#include <netinet/in.h>  // sockaddr_in
+#include <sys/socket.h>  // socket, connect, send, recv
+#include <unistd.h>      // close
+
+#include <array>
+#include <cerrno>
+#include <cstring>
 #include <stdexcept>
+#include <system_error>
+#include <utility>
 
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <unistd.h>
+#include "lab/Logger.h"
 
-TCPClient::TCPClient(const std::string& host, uint16_t port)
-    : host_{host}, port_{port}, client_fd_{-1} {}
+namespace net {
+
+TCPClient::TCPClient(std::string host, std::uint16_t port)
+    : host_{std::move(host)}, port_{port} {}
+
+TCPClient::~TCPClient() {
+  close();
+}
 
 bool TCPClient::connect() {
-  client_fd_ = socket(AF_INET, SOCK_STREAM, 0);
-  if (client_fd_ < 0) {
-    throw std::runtime_error("socket failed.");
-  }
+  close();  // reconnecting: release a previous socket first
 
-  // specifying the address
   sockaddr_in server_address{};
   server_address.sin_family = AF_INET;
   server_address.sin_port = htons(port_);
-
-  // serverAddress.sin_addr.s_addr = INADDR_ANY;
-  if (::inet_pton(AF_INET, host_.c_str(), &server_address.sin_addr) <= 0) {
-    throw std::runtime_error("invalid address");
+  // inet_pton converts "127.0.0.1" into the binary form (1 = ok, 0 = invalid).
+  if (::inet_pton(AF_INET, host_.c_str(), &server_address.sin_addr) != 1) {
+    throw std::invalid_argument("invalid IPv4 address: " + host_);
   }
 
-  // sending connection request
-  return (
-      ::connect(client_fd_,
-                reinterpret_cast<sockaddr*>(&server_address),  // global syscall
-                sizeof(server_address)) == 0);
+  fd_ = ::socket(AF_INET, SOCK_STREAM, 0);
+  if (fd_ < 0) {
+    throw std::system_error(errno, std::generic_category(), "socket");
+  }
+
+  // `::connect` is the POSIX function; plain `connect` would be this member.
+  if (::connect(fd_, reinterpret_cast<sockaddr*>(&server_address),
+                sizeof(server_address)) < 0) {
+    LOG_S("[TCPClient] connect to " << host_ << ':' << port_
+                                    << " failed: " << std::strerror(errno));
+    close();
+    return false;
+  }
+  return true;
 }
 
-void TCPClient::send(const std::string& msg) const {
-  if (client_fd_ < 0) {
-    throw std::runtime_error("socket not connected");
+void TCPClient::send(std::string_view message) const {
+  if (fd_ < 0) {
+    throw std::logic_error("TCPClient::send: not connected");
   }
-
-  const char* data = msg.c_str();
-  size_t total = 0;
-  size_t len = msg.size();
-  while (total < len) {
-    ssize_t sent = ::send(client_fd_, data + total, len - total, 0);
-    if (sent <= 0) {
-      throw std::runtime_error("send failed");
+  std::size_t total = 0;
+  while (total < message.size()) {
+    const ssize_t sent = ::send(fd_, message.data() + total,
+                                message.size() - total, MSG_NOSIGNAL);
+    if (sent < 0) {
+      if (errno == EINTR) {
+        continue;
+      }
+      throw std::system_error(errno, std::generic_category(), "send");
     }
-    total += sent;
+    total += static_cast<std::size_t>(sent);
   }
 }
 
 std::string TCPClient::receive() const {
-  if (client_fd_ < 0) {
-    throw std::runtime_error("socket not connected");
+  if (fd_ < 0) {
+    throw std::logic_error("TCPClient::receive: not connected");
   }
-
-  char buffer[1024];
-
-  ssize_t bytes = recv(client_fd_, buffer, sizeof(buffer), 0);
-  if (bytes < 0) {
-    throw std::runtime_error("recv failed");
+  std::array<char, 1024> buffer{};
+  while (true) {
+    const ssize_t received = ::recv(fd_, buffer.data(), buffer.size(), 0);
+    if (received < 0) {
+      if (errno == EINTR) {
+        continue;
+      }
+      throw std::system_error(errno, std::generic_category(), "recv");
+    }
+    return std::string(buffer.data(),
+                       static_cast<std::size_t>(received));  // "" = closed
   }
-
-  if (bytes == 0) {
-    throw std::runtime_error("connection closed");
-  }
-
-  return std::string(buffer, bytes);
 }
 
 void TCPClient::close() {
-  if (client_fd_ >= 0) {
-    ::close(client_fd_);
-    client_fd_ = -1;
+  if (fd_ >= 0) {
+    ::close(fd_);
+    fd_ = -1;
   }
 }
 
-const std::string& TCPClient::getHost() const {
-  return host_;
-}
-
-uint16_t TCPClient::getPort() const {
-  return port_;
-}
+}  // namespace net

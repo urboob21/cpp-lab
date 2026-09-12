@@ -1,121 +1,132 @@
-//cppcheck-suppress-file [invalidPointerCast]
+// -----------------------------------------------------------------------------
+// Binary file I/O
+//
+//   std::ofstream out(path, std::ios::binary);   write raw bytes with write()
+//   std::ifstream in(path, std::ios::binary);    read raw bytes with read()
+//   tellp()/tellg() report and seekp()/seekg() move the write/read position
+//
+// Pitfalls:
+//   - Never dump an object with write(this, sizeof(*this)) if it contains
+//     pointers or owning members such as std::string: only the pointer value
+//     is written, not the characters. Serialize each field instead
+//     (strings as length + bytes).
+//   - Raw binary data depends on type sizes and endianness, so the file is only
+//     portable between identical platforms.
+//
+// Reference: https://en.cppreference.com/w/cpp/io/basic_fstream
+// -----------------------------------------------------------------------------
+
+#include <cstdint>
+#include <filesystem>
 #include <fstream>
-#include <iostream>
 #include <string>
-#include "ExampleRegistry.h"
+#include <utility>
+#include <vector>
+
+#include "lab/Example.h"
+#include "lab/Logger.h"
 
 namespace {
 
-// Important: Do not use sizeof() to dump the raw memory of an object if it contains std::string.
+namespace fs = std::filesystem;
+
 class Account {
-  friend std::ostream& operator<<(std::ostream&, const Account&);
+ public:
+  Account() = default;
+  Account(std::int32_t code, std::string name, double balance)
+      : code_{code}, name_{std::move(name)}, balance_{balance} {}
+
+  std::int32_t code() const { return code_; }
+
+  /// Writes code, balance, name length and name characters.
+  void write(std::ostream& out) const {
+    const auto length = static_cast<std::uint32_t>(name_.size());
+    out.write(reinterpret_cast<const char*>(&code_), sizeof(code_));
+    out.write(reinterpret_cast<const char*>(&balance_), sizeof(balance_));
+    out.write(reinterpret_cast<const char*>(&length), sizeof(length));
+    out.write(name_.data(), static_cast<std::streamsize>(length));
+  }
+
+  /// Reads the fields back in the same order. Returns false on failure.
+  bool read(std::istream& in) {
+    constexpr std::uint32_t kMaxNameLength =
+        1024;  // protects against corrupt files
+    std::uint32_t length = 0;
+    in.read(reinterpret_cast<char*>(&code_), sizeof(code_));
+    in.read(reinterpret_cast<char*>(&balance_), sizeof(balance_));
+    in.read(reinterpret_cast<char*>(&length), sizeof(length));
+    if (!in || length > kMaxNameLength) {
+      return false;
+    }
+    name_.resize(length);
+    in.read(name_.data(), static_cast<std::streamsize>(length));
+    return static_cast<bool>(in);
+  }
+
+  std::string describe() const {
+    return "#" + std::to_string(code_) + " " + name_ + ", balance " +
+           std::to_string(balance_);
+  }
 
  private:
-  int code_;
+  std::int32_t code_{0};
   std::string name_;
-  double balance_;
-
- public:
-  explicit Account(int c = 0, std::string n = "", double b = 0.0)
-      : code_(c), name_(std::move(n)), balance_(b) {}
-
-  int getCode() const { return code_; }
-
-  std::ostream& write(std::ostream&) const;
-  std::istream& read(std::istream&);
+  double balance_{0.0};
 };
-
-std::ostream& Account::write(std::ostream& os) const {
-  os.write(reinterpret_cast<const char*>(&code_), sizeof(code_));
-  os.write(reinterpret_cast<const char*>(&balance_), sizeof(balance_));
-
-  std::size_t length = name_.size();
-  os.write(reinterpret_cast<const char*>(&length), sizeof(length));
-  os.write(name_.data(), length);
-
-  return os;
-}
-
-std::istream& Account::read(std::istream& is) {
-  is.read(reinterpret_cast<char*>(&code_), sizeof(code_));
-  is.read(reinterpret_cast<char*>(&balance_), sizeof(balance_));
-
-  std::size_t length = 0;
-  is.read(reinterpret_cast<char*>(&length), sizeof(length));
-
-  name_.resize(length);
-  is.read(name_.data(), length);
-
-  return is;
-}
-
-std::ostream& operator<<(std::ostream& os, const Account& acc) {
-  os << "Code   : " << acc.code_ << "\n";
-  os << "Name   : " << acc.name_ << "\n";
-  os << "Balance: " << acc.balance_ << "\n";
-  return os;
-}
 
 void run() {
+  const fs::path path = fs::temp_directory_path() / "cpplab_accounts.bin";
+  const std::vector<Account> accounts{
+      {1, "Whitney Houston", 2500.0},
+      {2, "Michael Jackson", 5000.0},
+      {3, "Freddie Mercury", 4200.0},
+  };
 
-  // ====== WRITE ======
-  Account* accounts[2];
-  accounts[0] = new Account(1, "Whitney Elizabeth Houston", 2500);
-  accounts[1] = new Account(2, "Michael Jackson", 5000);
-
-  std::ofstream outf("data.bin", std::ios::binary | std::ios::trunc);
-
-  if (!outf) {
-    std::cerr << "Cannot open file for writing\n";
-    return;
-  }
-
-  for (int i = 0; i < 2; ++i) {
-    if (!accounts[i]->write(outf))
-      std::cerr << "Error writing account " << i << "\n";
-  }
-
-  outf.close();
-  std::cout << "Finish writing.\n";
-
-  // ====== READ ACCOUNT #2 ======
-  std::ifstream inf("data.bin", std::ios::binary);
-
-  if (!inf) {
-    std::cerr << "Cannot open file for reading\n";
-  } else {
-
-    auto* temp = new Account();
-
-    while (inf.peek() != EOF) {
-      temp->read(inf);
-
-      if (temp->getCode() == 2) {
-        std::cout << "\nAccount #2\n";
-        std::cout << *temp << std::endl;
-        break;
-      }
+  LOG_SECTION("Writing");
+  std::vector<std::streampos> offsets;  // where each record starts
+  {
+    std::ofstream out(path, std::ios::binary | std::ios::trunc);
+    if (!out) {
+      LOG_S("cannot open " << path << " for writing");
+      return;
     }
+    for (const Account& account : accounts) {
+      offsets.push_back(out.tellp());
+      account.write(out);
+    }
+  }  // the stream is flushed and closed here (RAII)
+  LOG_S("wrote " << accounts.size() << " accounts, " << fs::file_size(path)
+                 << " bytes to " << path.string());
+  LOG_S("sizeof(Account) = " << sizeof(Account)
+                             << " - the object size is NOT what we store");
 
-    delete temp;
+  LOG_SECTION("Reading sequentially");
+  {
+    std::ifstream in(path, std::ios::binary);
+    Account account;
+    while (account.read(in)) {
+      LOG_S("  " << account.describe());
+    }
   }
 
-  inf.close();
+  LOG_SECTION("Random access with seekg");
+  {
+    std::ifstream in(path, std::ios::binary);
+    in.seekg(offsets.at(2));  // jump straight to the third record
+    Account third;
+    if (third.read(in)) {
+      LOG_S("  record 3: " << third.describe());
+    }
+  }
 
-  // ====== CLEAN MEMORY ======
-  delete accounts[0];
-  delete accounts[1];
-
-  std::cout << "Finish reading.\n";
+  fs::remove(path);
+  LOG_S("removed " << path.filename().string());
 }
+
 }  // namespace
 
-class BinaryFileHandling : public IExample {
- public:
-  std::string group() const override { return "core/filehandle"; }
-  std::string name() const override { return "BinaryFileHandling"; }
-  std::string description() const override { return "Binary file handling"; }
-  void execute() override { run(); }
-};
-
-REGISTER_EXAMPLE(BinaryFileHandling);
+LAB_EXAMPLE(
+    "BinaryFileHandling",
+    "write/read binary records, serialize strings, seekg random access") {
+  run();
+}

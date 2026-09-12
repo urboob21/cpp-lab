@@ -18,32 +18,46 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
+ *
+ * Modified for cpp-lab: namespace, std::unique_ptr pimpl, input validation.
  */
 
-#ifndef _PID_H_
-#define _PID_H_
+#pragma once
+
+#include <memory>
+
+namespace controller {
 
 class PIDImpl;
+
+/// Discrete PID controller.
+///
+///   error  = setpoint - process_value
+///   output = Kp * error + Ki * sum(error * dt) + Kd * (error - previous_error) / dt
+///
+/// The output is clamped to [min, max]. The implementation is hidden behind a
+/// pointer ("pimpl" idiom), so changing it does not recompile the users.
 class PID {
  public:
-  // Kp -  proportional gain
-  // Ki -  Integral gain
-  // Kd -  derivative gain
-  // dt -  loop interval time
-  // max - maximum value of manipulated variable
-  // min - minimum value of manipulated variable
-  PID(double dt, double max, double min, double Kp, double Kd, double Ki);
-
-  // Returns the manipulated variable given a setpoint and current process value
-  double calculate(double setpoint, double pv);
+  /// @param dt  loop interval time (must be > 0)
+  /// @param max maximum value of the manipulated variable
+  /// @param min minimum value of the manipulated variable (must be <= max)
+  /// @param kp  proportional gain
+  /// @param kd  derivative gain
+  /// @param ki  integral gain
+  PID(double dt, double max, double min, double kp, double kd, double ki);
   ~PID();
 
-    PID() = delete;
-    PID(const PID& other) = delete;
-    PID& operator=(const PID& other) = delete;
+  PID(const PID&) = delete;
+  PID& operator=(const PID&) = delete;
+  PID(PID&&) noexcept;
+  PID& operator=(PID&&) noexcept;
+
+  /// Returns the manipulated variable for a setpoint and the current process value.
+  double calculate(double setpoint, double process_value);
 
  private:
-  PIDImpl* pimpl;
+  std::unique_ptr<PIDImpl> impl_;
 };
 
-#endif
+}  // namespace controller

@@ -1,10 +1,12 @@
 #include "EditorWidget.h"
 
+#include <utility>
+
 EditorWidget::EditorWidget(std::shared_ptr<Controller> c,
                            const std::string& initData)
     : Gtk::Box(Gtk::Orientation::VERTICAL),
       innerBox_(Gtk::Orientation::VERTICAL),
-      controller_(c) {
+      controller_(std::move(c)) {
   // Create a beautiful border
   frame_.set_label("ZONE 1: EDITOR (Input View)");
   frame_.set_margin(10);
@@ -29,7 +31,8 @@ EditorWidget::EditorWidget(std::shared_ptr<Controller> c,
 }
 
 void EditorWidget::onDataChanged(const std::string& newData) {
-  // Fix string comparison error or do not thing ?
+  // Only touch the entry when the text really changed: set_text() would move
+  // the cursor and could start another round of notifications.
   if (entry_.get_text() != Glib::ustring(newData)) {
     entry_.set_text(newData);
   }

@@ -1,64 +1,97 @@
-// cppcheck-suppress-file []
+// -----------------------------------------------------------------------------
+// Overloading operator-> and operator*
+//
+//   T& operator*()   dereference: returns the pointed-to object
+//   T* operator->()  member access: returns a pointer (or another object with
+//                    operator->, which is then applied again - "drill-down")
+//
+// These are how smart pointers and iterators look like pointers.
+// Overloads usually come in const and non-const pairs.
+//
+// Reference: https://en.cppreference.com/w/cpp/language/operator_member_access
+// -----------------------------------------------------------------------------
 
-// Overloading operator-> *.
-// Collection item
+#include <string>
+#include <utility>
 
-#include <iostream>
-#include "ExampleRegistry.h"
+#include "lab/Example.h"
+#include "lab/Logger.h"
+
 namespace {
 
-class IntCollection {
- private:
-  int m_data_[3]{10, 20, 30};
+struct Person {
+  std::string name;
+  int age;
+  void greet() const { LOG_S("  Hi, I am " << name << " (" << age << ")"); }
+};
 
+/// A tiny owning pointer, similar in spirit to std::unique_ptr.
+template <typename T>
+class Owner {
  public:
-  class Iterator {
-   private:
-    int* m_ptr_;
+  explicit Owner(T* pointer) : pointer_{pointer} {}
+  ~Owner() { delete pointer_; }
+  Owner(const Owner&) = delete;
+  Owner& operator=(const Owner&) = delete;
 
+  T& operator*() {
+    LOG("  Owner::operator*");
+    return *pointer_;
+  }
+  const T& operator*() const { return *pointer_; }
+
+  T* operator->() {
+    LOG("  Owner::operator->");
+    return pointer_;  // the compiler then applies the built-in -> to this pointer
+  }
+  const T* operator->() const { return pointer_; }
+
+ private:
+  T* pointer_;
+};
+
+/// operator-> may return an object that itself has operator->; the compiler
+/// keeps applying -> until it gets a raw pointer. Here that is used to lock
+/// around every member call: operator-> returns a temporary "guard".
+class Monitor {
+ public:
+  class Guard {
    public:
-    explicit Iterator(int* ptr) : m_ptr_(ptr) {}
+    explicit Guard(Person& person) : person_{person} { LOG("  [lock]"); }
+    ~Guard() { LOG("  [unlock]"); }
+    Guard(const Guard&) = delete;
+    Guard& operator=(const Guard&) = delete;
+    Person* operator->() { return &person_; }
 
-    int& operator*() {
-      std::cout << "int& operator*()\n";
-      return *m_ptr_;
-    }
-
-    int* operator->() {
-      std::cout << "int* operator->()\n";
-      return m_ptr_;
-    }
-
-    Iterator& operator++() {
-      ++m_ptr_;
-      return *this;
-    }
-
-    bool operator!=(const Iterator& other) const {
-      return m_ptr_ != other.m_ptr_;
-    }
+   private:
+    Person& person_;
   };
 
-  Iterator begin() { return Iterator(m_data_); }
-  Iterator end() { return Iterator(m_data_ + 3); }
+  explicit Monitor(Person person) : person_{std::move(person)} {}
+  Guard operator->() {
+    return Guard{person_};
+  }  // chained: Guard::operator-> follows
+
+ private:
+  Person person_;
 };
 
 void run() {
-  IntCollection col;
+  LOG_SECTION("A smart-pointer-like class");
+  Owner<Person> owner{new Person{"Alice", 30}};
+  owner->greet();     // owner.operator->()->greet()
+  (*owner).age += 1;  // owner.operator*().age
+  LOG_S("  age after (*owner).age += 1: " << owner->age);
 
-  for (auto it = col.begin(); it != col.end(); ++it) {
-    std::cout << *it << '\n';
-  }
+  LOG_SECTION("Chained operator->: a monitor that locks per call");
+  Monitor monitor{Person{"Bob", 40}};
+  monitor
+      ->greet();  // Monitor::operator-> -> Guard -> Guard::operator-> -> Person*
 }
+
 }  // namespace
 
-class ClassMemberAccessOperator : public IExample {
- public:
-  std::string group() const override { return "core/overloading_operator"; }
-  std::string name() const override { return "ClassMemberAccessOperator"; }
-  std::string description() const override { return ""; }
-
-  void execute() override { run(); }
-};
-
-REGISTER_EXAMPLE(ClassMemberAccessOperator);
+LAB_EXAMPLE("ClassMemberAccessOperator",
+            "operator-> and operator* for smart pointers and proxies") {
+  run();
+}

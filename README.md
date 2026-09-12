@@ -1,271 +1,288 @@
-## 1. Overview
-**TL;DR**
+# cpp-lab
+
+A C/C++ learning lab: ~100 small, runnable examples of modern C++ (C++20), design patterns,
+concurrency, sockets and embedded basics - built with CMake, GoogleTest, cppcheck and lcov, with
+Docker and GitHub Actions for CI/CD.
+
+Every example lives in one file, explains itself in a header comment, and can be run on its own.
+New to the material? Follow the [learning path](docs/learning-path.md). Examples marked `[draft]`
+are scaffolds waiting to be written - [docs/cpp-standards-coverage.md](docs/cpp-standards-coverage.md)
+lists what C++11 - C++23 features the lab covers and which ones are still open.
+
+---
+## 1. Quick start
+
 ```bash
-./scripts/run.sh
+./scripts/run.sh          # build + static analysis + tests + interactive menu
 ```
 
-**Project Hierarchy**
+or step by step:
+
+```bash
+cmake -S . -B build
+cmake --build build -j
+./build/bin/cpp_lab_project           # interactive menu
+./build/bin/cpp_lab_project --help    # command line
 ```
-includes/   -> Header files (.h, .hpp)  
-src/        -> Source files (.cpp)  
-tests/      -> GoogleTest test cases
-docs/       -> Documents
+
+**Project hierarchy**
+
+```
+include/lab/   framework API: LAB_EXAMPLE, LOG..., registry, menu, runner
+src/
+  lab/         framework implementation
+  main.cpp     entry point: command line and menu
+  core/        C++ language and standard library examples (incl. templates)
+  dp/          design patterns (behavioral, creational, structural) and C++ idioms
+  controller/  control algorithms (PID)
+  socket/      POSIX TCP sockets
+  ap/          architecture patterns (MVC, MVVM) as GTK4 apps
+  demo/        standalone demos (dlopen plugin)
+  embedded/    bare-metal ARM example (own build script)
+tests/         GoogleTest unit tests and a gtest/gmock primer
+cmake/         CMake modules and helpers
+docs/          documentation, Doxygen config and UML diagrams
+scripts/       build, coverage and scaffolding scripts
 ```
 
 ---
-## 2. Dependencies
-Make sure the following tools are installed before building the project:
-- **g++ / gcc**
-- **CMake**
-- **Git**
-- **lcov** (for code coverage)
-- **cppcheck** (for static analysis)
-- **Optional:** Install `clang-format` to format C++ code.
+## 2. Using the lab
 
+### 2.1. Interactive menu
 
-> Apply clang-format recursively to .cpp, .h, .hpp files
-    **Linux**
-    ```bash
-    sudo apt install clang-format
-    find . -regex '.*\.\(cpp\|h\|hpp\)' -exec clang-format -i {} \;
-    ```
-    **Windows**
-    ```bash
-    Get-ChildItem -Recurse -Include *.cpp, *.h, *.hpp | ForEach-Object { clang-format -i $_.FullName }
-    ```
----
-## 3. Setup Environment
-### 3.1. Dev
-- **Ubuntu system**
-    * Install `gcc`, `cmake`, `git`, and `pthread` (Skip this step if you already install)
-        ```bash
-        $ sudo apt-get update
-        $ sudo apt-get install g++
-        $ sudo apt-get install lcov
-        $ sudo apt-get install cmake
-        $ sudo apt-get install git
-        $ sudo apt install valgrind
-        $ sudo apt-get install cppcheck
-        $ sudo apt-get install -y clang-tidy
-        $ sudo apt install python3-gcovr
-        $ sudo apt-get install -y libgtkmm-4.0-dev
-        ```
-    * Build the application and the tests
-        ```bash
-        $ cd build
-        $ cmake ..
-        $ cmake --build .
-        ```
-    * Run the application and the test
-        ```bash
-        $ ./bin/cpp_lab_project
-        $ ./bin/cpp_lab_project_test
-        ```
-    * Detect Memory Leak Using [valgrind](https://valgrind.org/)
-        ```bash
-        $ valgrind --leak-check=full -v ./cpp-lab 
-        ```
-    * (Optional) Run static analysis - cppcheck
-        ```bash
-        $ cppcheck "folder" / "file"
-        ```
-    * (Optional) Run static analysis - clang-tidy
-        ```bash
-        $ clang-tidy -p build -header-filter='^src/.*' $(find src -name "*.cpp")
-        ```
-    * (Optional) Run coverage - lcov
-        ```bash
-        $ ./scripts/gen_coverage_lcov.sh
-        ```
-- **Docker**
-    * Update `Dockerfile`
-    * Build the Docker image
-        ```
-        $ cd build
-        $ docker build --tag cpp-lab .
-        ```
-    * Run an interactive container
-        ```
-        $ docker run -it cpp-lab:latest /bin/bash
-        ```
-    * Inspect the environment
-        ```
-        $ printenv
-        ```
-    * *Notes:*
-        * Use the `-t` or `--tag` flag to set the name of the image to be created. (the full name is actually `cpp-lab:latest`, since latest is the default tag)
-        * Opening an interactive shell inside your Docker container to explore, test, or debug the environment built from your image.
-        * docker run to start a new container.
-        * `-it`: run it interactively:
-        * `-i`: keep STDIN open (so you can type commands)
-        * `-t`: allocate a terminal (TTY)
-        * `cpp-lab:latest`: the image you built earlier.
-        * `/bin/bash`: the command to execute inside the container (opens a Bash shell).
+The menu mirrors the folders below `src/`:
 
-### 3.2 Debug - C/C++ Debugging (VS Code)
-
-#### 3.2.1. Launch Configuration
-
-To debug C/C++ projects in VS Code, you must create a *launch configuration* that specifies:
-
-- The application entry point (executable)
-- How to attach to a running process
-- Environment variables needed
-- Saved debugging setup details
-
-All launch configs are stored in `.vscode/launch.json` within your workspace.
-##### a. Create `launch.json`
-- Go to `Run` → `Add Configuration...` or
-- Use VS Code chat command:
-    ```
-    /startDebugging
-    ```
-    to auto-generate a debug configuration.
-
-##### b. Start Debugging
-
-You can start a debug session in several ways:
-- **F5**
-- **Ctrl + Shift + D**: Open Debug panel, select a config, press Start
-- **Ctrl + Shift + P** → select `Debug: Select and Start Debugging`
-
-#### 3.2.2. Debug Configuration Example
-
-The most important field is the executable that will run:
-
-```json
-// .vscode/launch.json
-{
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "(gdb) Launch",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/debug/bin/cpp_lab_project",
-            "args": [],
-            "stopAtEntry": true,
-            "cwd": "${workspaceFolder}",
-            "environment": [],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "preLaunchTask": "CMake Debug Build",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                },
-                {
-                    "description": "Set disassembly flavor to Intel",
-                    "text": "-gdb-set disassembly-flavor intel",
-                    "ignoreFailures": true
-                }
-            ]
-        }
-    ]
-}
+```
+------------------------------------------------------------------------
+ cpp-lab / core / smart_pointer   (3 examples)
+------------------------------------------------------------------------
+   1. Shared                      std::shared_ptr: reference counting, ...
+   2. Unique                      std::unique_ptr: ownership, moves, ...
+   3. Weak                        std::weak_ptr: lock/expired, ...
+------------------------------------------------------------------------
+ <number> open    0 back    <text> search    ? help    q quit
 ```
 
-#### 3.2.3. Build Tasks (CMake)
+Type a number to open a folder or run an example, `0` to go back, `q` to quit, or any text to
+search ids and descriptions.
 
-An example `tasks.json` for CMake builds:
+### 2.2. Command line
 
-```json
-// .vscode/tasks.json
-{
-    "version": "2.0.0",
-    "tasks": [
-        {
-            "label": "CMake Debug Configure",
-            "type": "shell",
-            "command": "cmake",
-            "args": [
-                "-S",
-                ".",
-                "-B",
-                "build/debug",
-                "-DCMAKE_BUILD_TYPE=Debug"
-            ]
-        },
-        {
-            "label": "CMake Debug Build",
-            "type": "shell",
-            "command": "cmake",
-            "args": [
-                "--build",
-                "build/debug"
-            ],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "presentation": {
-                "reveal": "always"
-            },
-            "dependsOn": "CMake Debug Configure"
-        }
-    ]
-}
-```
-#### 3.2.4. Run Steps
-
-1. **Open** your project in VS Code
-2. **Install Extension:**  
-   - *C/C++ Extension Pack*
-3. **Install GDB:**
-   ```bash
-   sudo apt update
-   sudo apt install gdb
-   ```
-4. **Start Debugging:**  
-   Press `F5`
-5. **Run Without Debugging:**  
-   Press `Ctrl + F5`
-6. **Build Project (Optional):**  
-   Press `Ctrl + Shift + B`
-
-Notes:
-| Shortcut        | Action                 |
-|-----------------|-----------------------|
-| F5              | Start debugging        |
-| Ctrl + F5       | Run without debugging  |
-| Ctrl + Shift + D| Open Debug panel       |
-| Ctrl + Shift + B| Build project          |
-
-### 3.3 Documentation with `doxygen`
-TBD - Refer to this [Documentation with doxygen](https://www.labri.fr/perso/fleury/posts/programming/using-cmake-googletests-and-gcovr-in-a-c-project.html#:~:text=of%20the%C2%A0project.-,Documentation%20with%20doxygen,-Code%20embedded%20documentation)
-
-## 4. Docker Image
 ```bash
-# Navigate to the project that contain your Dockerfile
-cd cpp-lab
+./build/bin/cpp_lab_project --list                        # every example
+./build/bin/cpp_lab_project --list pointer                # filter id or description
+./build/bin/cpp_lab_project --run core/smart_pointer/Weak # run one example by id
+./build/bin/cpp_lab_project --run weak                    # a filter matching exactly one
+./build/bin/cpp_lab_project --run-all dp/behavioral       # all examples in a folder
+./build/bin/cpp_lab_project --plain --run-all             # no log prefixes, no colors
+```
 
-# Build the project by running the following command, swapping out DOCKER_USERNAME with your username.
+Debug builds prefix every log line with `[time][file:line][function]` so you can see where output
+comes from. Release builds (`-DCMAKE_BUILD_TYPE=Release`) and `--plain` print only the message.
+
+### 2.3. Interactive examples
+
+Examples marked `[interactive]` need a human or a second process and are skipped by `--run-all`
+and by the tests. For instance, run `socket/simple_tcp/SimpleTCPServer`, then in another terminal:
+
+```bash
+telnet localhost 8080     # or: nc localhost 8080, or run socket/simple_tcp/SimpleTCPClient
+```
+
+Type lines to have them echoed, `Q` to disconnect, `SHUTDOWN` to stop the server.
+`socket/simple_tcp/LoopbackEcho` shows the same client/server exchange inside one process.
+
+---
+## 3. Adding an example
+
+```bash
+./scripts/new_example.sh core/utils Span "std::span: a view over contiguous memory"
+cmake --build build && ./build/bin/cpp_lab_project --run core/utils/Span
+```
+
+By hand, a complete example is:
+
+```cpp
+#include "lab/Example.h"
+#include "lab/Logger.h"
+
+namespace {
+void demo() {
+  LOG_SECTION("Basics");
+  LOG_S("1 + 2 = " << 1 + 2);
+}
+}  // namespace
+
+LAB_EXAMPLE("Span", "std::span: a view over contiguous memory") { demo(); }
+```
+
+No CMake edit is needed: every `.cpp` in a module folder is compiled, and the menu group comes
+from the folder. See [docs/adding-examples.md](docs/adding-examples.md) for the conventions and
+[docs/README.md](docs/README.md) for the topic index.
+
+---
+## 4. Dependencies
+
+- **g++ >= 13** (or clang++ >= 16) with C++20 support, **CMake >= 3.16**, **git**
+- Optional: `libgtkmm-4.0-dev` (GUI apps), `cppcheck`, `clang-tidy`, `clang-format`, `lcov` or
+  `gcovr`, `valgrind`, `gdb`, `gcc-arm-none-eabi` + `qemu-system-arm` (bare-metal example)
+
+```bash
+sudo apt-get update
+sudo apt-get install -y g++ cmake ninja-build git cppcheck clang-tidy clang-format \
+                        lcov python3-gcovr valgrind gdb libgtkmm-4.0-dev
+```
+
+GoogleTest is downloaded automatically at configure time (needs network on the first configure;
+use `-DCPPLAB_BUILD_TESTS=OFF` to skip it).
+
+---
+## 5. Build options
+
+| Option | Default | Meaning |
+|---|---|---|
+| `CMAKE_BUILD_TYPE` | `Debug` | `Debug`, `Release`, `RelWithDebInfo` |
+| `CPPLAB_BUILD_TESTS` | `ON` | unit tests and one smoke test per example |
+| `CPPLAB_BUILD_DEMOS` | `ON` | standalone demos in `src/demo` |
+| `CPPLAB_BUILD_GUI` | `AUTO` | GTK4 apps in `src/ap`: `AUTO`, `ON`, `OFF` |
+| `CPPLAB_BUILD_DOCS` | `ON` | add the `docs` target when doxygen is installed |
+| `CPPLAB_DOCS_WARNINGS_AS_ERRORS` | `OFF` | fail the `docs` target on Doxygen warnings |
+| `CPPLAB_ENABLE_SANITIZERS` | `OFF` | AddressSanitizer + UndefinedBehaviorSanitizer |
+| `CPPLAB_WARNINGS_AS_ERRORS` | `OFF` | `-Werror` |
+| `ENABLE_COVERAGE` | `OFF` | `--coverage` for lcov/gcovr |
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCPPLAB_BUILD_GUI=OFF
+```
+
+---
+## 6. Testing
+
+```bash
+ctest --test-dir build -j --output-on-failure     # everything
+ctest --test-dir build -L unit                    # GoogleTest unit tests
+ctest --test-dir build -L example                 # run every example once
+ctest --test-dir build -R 'example:dp/'           # only the design patterns
+./build/bin/cpp_lab_project_unit_test --gtest_filter='Registry*'
+```
+
+- Unit tests live in `tests/`; any `*Test.cpp` file is picked up automatically. `tests/gtest_primer`
+  doubles as a GoogleTest/GoogleMock tutorial (see [tests/README.md](tests/README.md)).
+- Smoke tests (`example:<id>`) are generated from the executable itself, so a new example is
+  tested as soon as it exists.
+
+**Sanitizers** catch memory errors, leaks and undefined behavior:
+
+```bash
+cmake -S . -B build-asan -DCPPLAB_ENABLE_SANITIZERS=ON
+cmake --build build-asan -j && ctest --test-dir build-asan -j
+```
+
+**Memory leaks with valgrind**:
+
+```bash
+valgrind --leak-check=full ./build/bin/cpp_lab_project --plain --run-all core/class
+```
+
+---
+## 7. Static analysis, formatting and coverage
+
+```bash
+# cppcheck (-I include is required so the LAB_EXAMPLE macro can be expanded)
+cppcheck --enable=warning,style,performance,portability --inconclusive --inline-suppr --quiet \
+         --error-exitcode=1 -I include --suppressions-list=.cppcheck-suppressions ./src ./include
+
+# clang-tidy (configured by .clang-tidy)
+clang-tidy -p build $(git ls-files 'src/*.cpp')
+
+# clang-format (Google-based style, .clang-format)
+git ls-files '*.cpp' '*.h' | xargs clang-format -i
+
+# coverage reports
+./scripts/gen_coverage_lcov.sh      # or ./scripts/gen_coverage_gcovr.sh
+```
+
+Intentional findings in teaching examples are listed in `.cppcheck-suppressions`.
+
+---
+## 8. API documentation (Doxygen)
+
+```bash
+sudo apt-get install doxygen graphviz     # graphviz is optional (class diagrams)
+cmake --build build --target docs         # -> build/docs/html/index.html
+```
+
+The site has the README as its front page, the guides as "Related Pages" and every source file
+browsable and cross-linked. `.github/workflows/docs.yml` regenerates it on every push and publishes
+it to GitHub Pages from `master`. Setup and the wiki recipe: [docs/doxygen.md](docs/doxygen.md).
+
+---
+## 9. The other programs
+
+| Program | Run | Documentation |
+|---|---|---|
+| GTK4 apps | `./build/bin/ap`, `mvc_ap`, `mvvm_ap` | [src/ap/README.md](src/ap/README.md) |
+| dlopen plugin demo | `./build/bin/demo_dlopen` | [src/demo/dlopen/README.md](src/demo/dlopen/README.md) |
+| Bare-metal ARM (QEMU) | `cd src/embedded && ./run.sh` | [src/embedded/README.md](src/embedded/README.md) |
+
+---
+## 10. Debugging with VS Code
+
+1. Install the *C/C++ Extension Pack* and `gdb` (`sudo apt install gdb`).
+2. Press **F5**. `.vscode/launch.json` builds `build/debug` through the task in
+   `.vscode/tasks.json` and starts `build/debug/bin/cpp_lab_project` under gdb.
+
+| Shortcut | Action |
+|---|---|
+| F5 | start debugging |
+| Ctrl + F5 | run without debugging |
+| Ctrl + Shift + D | open the debug panel |
+| Ctrl + Shift + B | build |
+
+To debug a single example without the menu, set `"args": ["--run", "core/smart_pointer/Weak"]` in
+`launch.json`.
+
+---
+## 11. Docker
+
+```bash
+# Build the image (swap DOCKER_USERNAME for your account)
 docker build -t DOCKER_USERNAME/cpp-lab .
-
-# Verify the image exists locally
 docker image ls
 
-# To push the image
+# Open a shell inside the image
+docker run -it --rm DOCKER_USERNAME/cpp-lab:latest /bin/bash
+
+# Push it (CI uses urboob21/cpp-lab:latest)
 docker push DOCKER_USERNAME/cpp-lab
 ```
 
-## 5. TroubleShooting
-1. `push access denied, repository does not exist or may require authorization: server message: insufficient_scope: authorization failed`
-=> docker login / Docker Desktop login
+`-i` keeps stdin open, `-t` allocates a terminal, `--rm` removes the container when it exits.
 
-## 6. Evaluate Executable
-- List all sections:
+---
+## 12. Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `gtkmm-4.0 not found` | `sudo apt install libgtkmm-4.0-dev`, or configure with `-DCPPLAB_BUILD_GUI=OFF` |
+| FetchContent cannot download GoogleTest | configure with `-DCPPLAB_BUILD_TESTS=OFF` |
+| `Does not match the generator used previously` | delete the `build/` directory and configure again |
+| `registry error: duplicate example id ...` | two `LAB_EXAMPLE` names collide in one folder |
+| cppcheck reports `syntax error` on `LAB_EXAMPLE` | add `-I include` so the macro can be expanded |
+| `push access denied` when pushing the image | `docker login` first |
+
+---
+## 13. Evaluating the executable
+
 ```bash
-$ size ./build/cpp-lab
+size ./build/bin/cpp_lab_project
 ```
-- The expected output should be the following:
-```bash
+
+```
    text    data     bss     dec     hex filename
-  14791     792     280   15863    ./build/cpp-lab
+ xxxxxx    xxxx    xxxx  xxxxxx   xxxxx ./build/bin/cpp_lab_project
 ```
 
-- `.text`: Text Segment - the executable code size, including: complied function, inline, template, constants, string literals
-- `.data`: Initialized Data Segment - the memory for the global, static variables, has init value.
-- `.bss`: Uninitialized Data Segment - global and static variables that are not initialized
+- `.text`: executable code, including inlined and template code, constants and string literals
+- `.data`: initialized global and static variables
+- `.bss`: uninitialized global and static variables

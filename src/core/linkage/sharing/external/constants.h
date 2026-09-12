@@ -1,22 +1,22 @@
-// global constants as external variables:
-
+// Global constants as external variables
+//
 // Advantages:
-//     Works prior to C++16.
-//     Only one copy of each variable is required.
-//     Only requires recompilation of one file if the value of a constant changes.
+//     Works before C++17.
+//     Only one copy of each variable exists.
+//     Changing a value only requires recompiling constants.cpp.
 // Downsides:
-//     Forward declarations and variable definitions are in separate files, and must be kept in sync.
-//     Variables not usable in constant expressions outside of the file in which they are defined.
+//     Declarations (here) and definitions (constants.cpp) must be kept in sync.
+//     Not usable in constant expressions outside constants.cpp.
 
-#ifndef ECONSTANTS_H
-#define ECONSTANTS_H
+#ifndef CPPLAB_EXTERNAL_CONSTANTS_H
+#define CPPLAB_EXTERNAL_CONSTANTS_H
 
 namespace external_constants {
-// Since the actual variables are inside a namespace, the forward declarations need to be inside a namespace as well
-// We can't forward declare variables as constexpr, but we can forward declare them as (runtime) const
+// The definitions live in a namespace, so the declarations must too.
+// A variable cannot be forward declared as constexpr, only as (run-time) const.
 extern const double kPi;
 extern const double kAvogadro;
 extern const double kMyGravity;
 }  // namespace external_constants
 
-#endif
+#endif  // CPPLAB_EXTERNAL_CONSTANTS_H

@@ -1,0 +1,92 @@
+# -------------------------------------------------------------
+# GitHub Actions Workflow: API documentation (Doxygen)
+# -------------------------------------------------------------
+# Purpose:
+# Generates the Doxygen site from the sources on every push and
+# pull request (Doxygen warnings fail the job), and publishes it
+# to GitHub Pages when master moves.
+#
+# One-time setup: Settings -> Pages -> Build and deployment ->
+# Source: "GitHub Actions". See docs/doxygen.md.
+# -------------------------------------------------------------
+
+name: Docs
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:  # lets a maintainer run it by hand from the Actions tab
+
+# Only one Pages deployment at a time; a newer run waits instead of racing.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  docs:
+    runs-on: ubuntu-24.04
+
+    permissions:
+      contents: read
+      pages: write      # required by actions/deploy-pages
+      id-token: write   # required by actions/deploy-pages (OIDC)
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      # doxygen generates the site, graphviz (dot) draws the class diagrams.
+      - name: Install Doxygen and Graphviz
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends doxygen graphviz cmake g++
+
+      # The docs only need the Doxyfile, so the GUI and the tests (which would
+      # download GoogleTest) stay off: configuring takes a second.
+      - name: Generate documentation
+        run: |
+          cmake -S . -B build-docs \
+                -DCPPLAB_BUILD_GUI=OFF \
+                -DCPPLAB_BUILD_TESTS=OFF \
+                -DCPPLAB_DOCS_WARNINGS_AS_ERRORS=ON
+          cmake --build build-docs --target docs
+
+      - name: Show Doxygen warnings
+        if: always()
+        run: |
+          echo "## Doxygen warnings" >> "$GITHUB_STEP_SUMMARY"
+          if [ -s build-docs/docs/doxygen-warnings.log ]; then
+            sed 's|^|    |' build-docs/docs/doxygen-warnings.log >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "None." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # Always available as a downloadable artifact, also for pull requests.
+      - name: Upload the site as a build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: doxygen-html
+          path: build-docs/docs/html
+          retention-days: 14
+
+      # --- Publish to GitHub Pages (pushes to master only) ---
+      - name: Configure GitHub Pages
+        if: github.event_name != 'pull_request'
+        uses: actions/configure-pages@v5
+
+      - name: Upload the Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build-docs/docs/html
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        if: github.event_name != 'pull_request'
+        uses: actions/deploy-pages@v4

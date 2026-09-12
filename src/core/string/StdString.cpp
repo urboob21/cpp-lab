@@ -1,230 +1,165 @@
+// -----------------------------------------------------------------------------
+// std::string and std::string_view
+//
+//   std::string       owns and manages a dynamic array of char (always
+//                     '\0'-terminated, so c_str() works with C APIs)
+//   std::string_view  (C++17) a non-owning view: pointer + length. Cheap to
+//                     pass by value, but must not outlive the viewed text.
+//
+//   - find() returns std::string::npos when nothing is found.
+//   - Short strings are usually stored inside the object without allocating
+//     (Small String Optimization).
+//   - C++20: starts_with / ends_with; std::erase(str, ch).
+//
+// Reference: https://en.cppreference.com/w/cpp/string/basic_string
+// -----------------------------------------------------------------------------
+
 #include <algorithm>
 #include <cctype>
-#include <iomanip>
 #include <sstream>
 #include <string>
+#include <string_view>
+#include <vector>
 
-#include "ExampleRegistry.h"
-#include "Logger.h"
+#include "lab/Example.h"
+#include "lab/Logger.h"
 
 namespace {
 
-void log_string_info(const char* label, const std::string& str) {
-  LOG_S(label << ": \"" << str << "\"" << " | size=" << str.size()
-              << " | empty=" << std::boolalpha << str.empty());
+void logString(std::string_view label, const std::string& text) {
+  LOG_S(label << ": \"" << text << "\" (size " << text.size() << ")");
+}
+
+void create() {
+  LOG_SECTION("Creating strings");
+  const std::string literal = "string 1";
+  const std::string constructed("string 2");
+  const std::string repeated(5, 's');
+  const std::string joined =
+      "First "
+      "Second";  // adjacent literals are joined at compile time
+  const std::string raw = R"(C:\folder\file.txt)";  // raw literal: no escaping
+  const std::string part(literal, 0, 6);            // substring constructor
+
+  logString("literal    ", literal);
+  logString("constructed", constructed);
+  logString("repeated   ", repeated);
+  logString("joined     ", joined);
+  logString("raw        ", raw);
+  logString("part       ", part);
+}
+
+void modify() {
+  LOG_SECTION("Modifying");
+  std::string name = "Phong";
+  name.append(" Nguyen");  // "Phong Nguyen"
+  name.insert(6, "Van ");  // "Phong Van Nguyen"
+  logString("append + insert", name);
+
+  name.erase(6, 4);  // erase(position, count) -> "Phong Nguyen"
+  logString("erase(6, 4)    ", name);
+
+  name.replace(0, 5, "Mr.");  // "Mr. Nguyen"
+  logString("replace(0, 5)  ", name);
+
+  std::erase(name, '.');  // C++20: remove every '.'
+  logString("std::erase('.')", name);
+
+  std::transform(name.begin(), name.end(), name.begin(), [](unsigned char c) {
+    return static_cast<char>(std::toupper(c));
+  });
+  logString("toupper        ", name);
+
+  std::string padded = "   Hello World   ";
+  padded.erase(0, padded.find_first_not_of(" \t"));  // trim left
+  padded.erase(padded.find_last_not_of(" \t") + 1);  // trim right
+  logString("trimmed        ", padded);
+}
+
+void search() {
+  LOG_SECTION("Searching and substrings");
+  const std::string text = "PhongNguyen";
+
+  if (const std::size_t position = text.find('N');
+      position != std::string::npos) {
+    LOG_S("find('N')        -> " << position << ", substr(" << position
+                                 << ") = \"" << text.substr(position) << "\"");
+  }
+  LOG_S("find(\"ong\")      -> " << text.find("ong"));
+  LOG_S("rfind('n')       -> " << text.rfind('n') << " (search from the end)");
+  LOG_S("find('z') == npos -> " << std::boolalpha
+                                << (text.find('z') == std::string::npos));
+  LOG_S("starts_with(\"Phong\") = "
+        << std::boolalpha << text.starts_with("Phong")
+        << ", ends_with(\"yen\") = " << text.ends_with("yen"));
+}
+
+void compareAndConvert() {
+  LOG_SECTION("Comparing and converting");
+  const std::string a = "apple";
+  const std::string b = "banana";
+  LOG_S(std::boolalpha << "a == \"apple\" " << (a == "apple") << ", a < b "
+                       << (a < b) << ", a.compare(b) = " << a.compare(b));
+
+  LOG_S("std::stoi(\"42\") = "
+        << std::stoi("42") << ", std::stod(\"3.5\") = " << std::stod("3.5")
+        << ", std::to_string(999) = \"" << std::to_string(999) << "\"");
+  try {
+    [[maybe_unused]] const int parsed = std::stoi("not a number");
+  } catch (const std::invalid_argument&) {
+    LOG("std::stoi(\"not a number\") throws std::invalid_argument");
+  }
+}
+
+void split() {
+  LOG_SECTION("Splitting on a delimiter");
+  std::istringstream stream("a,b,c");
+  std::vector<std::string> parts;
+  for (std::string item; std::getline(stream, item, ',');) {
+    parts.push_back(item);
+  }
+  LOG_S("\"a,b,c\" -> " << parts.size() << " parts: " << parts[0] << " "
+                        << parts[1] << " " << parts[2]);
+}
+
+std::size_t countVowels(
+    std::string_view text) {  // accepts literals and strings without copies
+  return static_cast<std::size_t>(
+      std::count_if(text.begin(), text.end(), [](char c) {
+        return std::string_view("aeiouAEIOU").find(c) != std::string_view::npos;
+      }));
+}
+
+void stringView() {
+  LOG_SECTION("std::string_view");
+  const std::string owned = "Hello, string_view";
+  const std::string_view view = owned;  // no copy
+  std::string_view word =
+      view.substr(0, 5);  // substr of a view is a view, still no copy
+
+  LOG_S("countVowels(owned) = " << countVowels(owned)
+                                << ", countVowels(\"literal\") = "
+                                << countVowels("literal"));
+  LOG_S("view.substr(0, 5) = " << word);
+  word.remove_prefix(1);
+  LOG_S("after remove_prefix(1): "
+        << word << " (the string itself is unchanged: " << owned << ")");
+
+  // Pitfall: std::string_view dangling = std::string("temporary");  // view of a dead string
+  const std::string small = "short";
+  LOG_S("sizeof(std::string) = "
+        << sizeof(std::string) << ", capacity of \"short\" = "
+        << small.capacity() << " (stored inline: SSO)");
 }
 
 }  // namespace
 
-namespace create {
-
-void run() {
-  LOG("=== create ===");
-
-  /// @brief Direct initialization with literal
-  std::string s1 = "string 1";
-
-  /// @brief Constructor initialization
-  std::string s2("string 2");
-
-  /// @brief Repeat character constructor
-  std::string s3(5, 's');  // "sssss"
-
-  /// @brief Concatenated string literals (compile-time)
-  std::string s4 =
-      "First "
-      "Second";
-
-  /// @brief Raw string literal (no escaping needed)
-  std::string s5 = R"(C:\folder\file.txt)";
-
-  log_string_info("s1", s1);
-  log_string_info("s2", s2);
-  log_string_info("s3", s3);
-  log_string_info("s4", s4);
-  log_string_info("s5", s5);
+LAB_EXAMPLE("StdString",
+            "std::string create/modify/search/convert, std::string_view") {
+  create();
+  modify();
+  search();
+  compareAndConvert();
+  split();
+  stringView();
 }
-
-}  // namespace create
-
-namespace modify {
-
-void run() {
-  LOG("=== modify ===");
-
-  std::string str = "xPhong";
-  log_string_info("init", str);
-
-  /// @brief Append
-  str.append("Nguyen");
-  log_string_info("append", str);
-
-  /// @brief Insert at position
-  str.insert(6, "Vanxx");
-  log_string_info("insert", str);
-
-  /// @brief Erase by position and length
-  str.erase(9, 2);
-  log_string_info("erase", str);
-
-  /// @brief Erase character using remove + erase idiom
-  auto new_end = std::remove(str.begin(), str.end(), 'O');
-  str.erase(new_end, str.end());
-  log_string_info("erase 'O'", str);
-
-  // C++20
-  // std::erase(str, 'O');
-
-  /// @brief Replace sub
-  str.replace(0, 1, "My name is ");
-  log_string_info("replace", str);
-
-  /// @brief Convert to lowercase
-  std::transform(str.begin(), str.end(), str.begin(),
-                 [](unsigned char c) { return std::tolower(c); });
-  log_string_info("tolower", str);
-
-  /// @brief Convert to uppercase
-  std::transform(str.begin(), str.end(), str.begin(),
-                 [](unsigned char c) { return std::toupper(c); });
-  log_string_info("toupper", str);
-
-  /// @brief Trim leading whitespace
-  str = "   Hello World   ";
-  log_string_info("before trim", str);
-
-  str.erase(0, str.find_first_not_of(" \t\n\r"));
-  log_string_info("trim first", str);
-
-  /// @brief Trim trailing whitespace
-  str.erase(str.find_last_not_of(" \t\n\r") + 1);
-  log_string_info("trim last", str);
-}
-
-}  // namespace modify
-
-namespace sub {
-
-void run() {
-  LOG("=== sub ===");
-
-  std::string str = "PhongNguyen";
-  log_string_info("init", str);
-
-  /// @brief Extract sub
-  std::string first_name = str.substr(0, 5);
-  log_string_info("substr", first_name);
-}
-
-}  // namespace sub
-
-namespace search {
-
-void run() {
-  LOG("=== search ===");
-
-  std::string str = "PhongNguyen";
-  log_string_info("init", str);
-
-  /// @brief Find character
-  size_t pos = str.find('N');
-  if (pos != std::string::npos) {
-    std::string last_name = str.substr(pos);
-
-    LOG_S("find('N')" << " | pos=" << pos << " | result=\"" << last_name
-                      << "\"");
-  }
-
-  /// @brief Find sub
-  pos = str.find("ong");
-  if (pos != std::string::npos) {
-    LOG_S("find(\"ong\")" << " | pos=" << pos);
-  }
-
-  /// @brief Find last occurrence
-  pos = str.rfind('n');
-  if (pos != std::string::npos) {
-    LOG_S("rfind('n')" << " | pos=" << pos);
-  }
-}
-
-}  // namespace search
-
-namespace compare {
-
-void run() {
-  LOG("=== compare ===");
-
-  std::string str1 = "PhongNguyen";
-  std::string str2 = "PhongNguyen";
-
-  /// @brief Compare strings
-  int result = str1.compare(str2);
-  LOG_S("compare result = " << result);
-  LOG_S("equal = " << std::boolalpha << (result == 0));
-}
-
-}  // namespace compare
-
-namespace convert {
-
-void run() {
-  LOG("=== convert ===");
-
-  /// @brief String to integer
-  std::string str_int = "3";
-  int ivalue = std::stoi(str_int);
-  LOG_S("stoi(\"3\") = " << ivalue);
-
-  /// @brief String to double
-  std::string str_double = "3.3";
-  double dvalue = std::stod(str_double);
-  LOG_S("stod(\"3.3\") = " << std::setprecision(4) << dvalue);
-
-  /// @brief Number to string
-  int value = 999;
-  std::string str_value = std::to_string(value);
-  log_string_info("to_string", str_value);
-}
-
-}  // namespace convert
-
-namespace parsing {
-
-void run() {
-  LOG("=== parsing ===");
-
-  std::string line = "a,b,c";
-  log_string_info("init", line);
-
-  /// @brief Parse CSV-like string
-  char delimiter = ',';
-  std::stringstream ss(line);
-  std::string item;
-
-  LOG_S("Parsing with delimiter ','");
-  while (std::getline(ss, item, delimiter)) {
-    LOG_S("token = " << item);
-  }
-}
-
-}  // namespace parsing
-
-class StdString : public IExample {
- public:
-  std::string group() const override { return "core/string"; }
-  std::string name() const override { return "StdString"; }
-  std::string description() const override { return "StdString Example"; }
-
-  void execute() override {
-    create::run();
-    modify::run();
-    sub::run();
-    search::run();
-    compare::run();
-    convert::run();
-    parsing::run();
-  }
-};
-
-REGISTER_EXAMPLE(StdString);

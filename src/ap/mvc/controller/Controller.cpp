@@ -1,6 +1,9 @@
 #include "Controller.h"
 
-Controller::Controller(std::shared_ptr<SharedData> model) : model_(model) {}
+#include <utility>
+
+Controller::Controller(std::shared_ptr<SharedData> model)
+    : model_(std::move(model)) {}
 
 void Controller::updateRequest(const std::string& text) {
   if (text.empty())

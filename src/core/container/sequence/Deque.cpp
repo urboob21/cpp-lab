@@ -1,48 +1,68 @@
-// cppcheck-suppress-file []
+// -----------------------------------------------------------------------------
+// std::deque - double-ended queue
+//
+//   - O(1) insertion and removal at BOTH ends, O(1) random access.
+//   - Elements live in fixed-size blocks, not in one contiguous buffer: there
+//     is no data(), and indexing is a little slower than std::vector.
+//   - push_front / push_back never move existing elements, so references and
+//     pointers to them stay valid (iterators do not).
+//   - Insertion or removal in the middle is O(n).
+//
+// Reference: https://en.cppreference.com/w/cpp/container/deque
+// -----------------------------------------------------------------------------
 
-/**
- *  Double-ended queue is an indexed sequence container that allows fast insertion and deletion
- *  and never invalidates pointers or references to the rest of the elements because it use two pointer for 1 elem.
-=> Indexing and iterating performance  < vector
- *  The elements of a deque are not stored contiguously
-
- *  Insertion or removal of elements - linear O(n)
- *  Random access - constant O(1)
- */
 #include <deque>
-#include <iostream>
+#include <string>
+
+#include "lab/Example.h"
+#include "lab/Logger.h"
 
 namespace {
-void run() {
-  // 1) Init
-  std::deque<int> m_deque = {9, 100, 0};
 
-  // 2) Modifiers
-  m_deque.clear();
-
-  m_deque.push_back(1);
-  m_deque.push_back(2);
-  m_deque.push_back(3);
-  m_deque.push_back(4);
-  m_deque.pop_back();
-  m_deque.pop_front();
-  m_deque.push_front(99);
-
-  for (const auto& e : m_deque) {
-    std::cout << e << " ";
+std::string join(const std::deque<int>& deque) {
+  std::string text;
+  for (const int element : deque) {
+    text += std::to_string(element) + " ";
   }
-  std::cout << std::endl;
+  return text;
 }
+
+void bothEnds() {
+  LOG_SECTION("Adding and removing at both ends");
+  std::deque<int> deque{1, 2, 3};
+  LOG_S("start          : " << join(deque));
+
+  deque.push_front(0);
+  deque.push_back(4);
+  LOG_S("push_front(0), push_back(4): " << join(deque));
+
+  deque.pop_front();
+  deque.pop_back();
+  LOG_S("pop_front(), pop_back()    : " << join(deque));
+
+  deque.insert(deque.begin() + 1, 99);  // O(n) in the middle
+  LOG_S("insert at index 1          : " << join(deque));
+  LOG_S("random access deque[2]     = " << deque[2]);
+}
+
+void referenceStability() {
+  LOG_SECTION("References survive push_back / push_front");
+  std::deque<int> deque{42};
+  const int& first = deque.front();
+
+  for (int i = 0; i < 10'000; ++i) {
+    deque.push_back(i);
+    deque.push_front(-i);
+  }
+  // With std::vector, growing would reallocate and `first` would dangle.
+  LOG_S("after 20000 insertions, `first` still reads "
+        << first << ", size = " << deque.size());
+}
+
 }  // namespace
 
-#include "ExampleRegistry.h"
-
-class Deque : public IExample {
- public:
-  std::string group() const override { return "core/container"; }
-  std::string name() const override { return "Deque"; }
-  std::string description() const override { return "std::deque Example"; }
-  void execute() override { run(); }
-};
-
-REGISTER_EXAMPLE(Deque);
+LAB_EXAMPLE("Deque",
+            "std::deque: fast insertion at both ends, stable references") {
+  bothEnds();
+  referenceStability();
+}

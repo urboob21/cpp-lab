@@ -1,249 +1,212 @@
-// Visitor is a behavioral design pattern that lets you separate algorithms from
-// the objects on which they operate. Appicability:
-// (*)   when you need to perform an operation on all elements of a complex
-// object structure (for example, an object tree, document).
-// (**)  to clean up the business logic of auxiliary behaviors.
-// (**)  when a behavior makes sense only in some classes of a class hierarchy,
-// but not in others. UML: docs/uml/patterns_behavioral_visitor.drawio.svg
+// -----------------------------------------------------------------------------
+// Visitor (behavioral pattern)
+//
+// Separates operations from the objects they work on. New operations become
+// new visitor classes; the element classes stay untouched.
+//
+// Problem: adding exportHtml(), exportJson(), exportMarkdown()... to every
+// element class means modifying ALL of them for each new format, and each
+// element collects unrelated responsibilities.
+// Solution: each element only implements accept(visitor), which calls the
+// visitor method for its concrete type ("double dispatch").
+//
+// Use it when:
+//   - you need many unrelated operations on a stable set of element types
+//   - an operation only makes sense for some classes of a hierarchy
+// Trade-off: adding a new ELEMENT type requires changing every visitor.
+//
+// Participants:
+//   Visitor          interface with one visit method per element type
+//   ConcreteVisitor  HtmlExporter, JsonExporter, WordCounter
+//   Element          accept(Visitor&)
+//   ConcreteElement  Paragraph, Image, Table
+//
+// Modern C++ alternative for a closed set of types: std::variant + std::visit.
+//
+// UML: docs/uml/dp/behavioral_visitor.drawio.svg
+// -----------------------------------------------------------------------------
 
-#include <iostream>
+#include <memory>
+#include <sstream>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
+#include "lab/Example.h"
+#include "lab/Logger.h"
+
 namespace {
-namespace visitor {
-class TextConcreteElement;
-class ImageConcreteElement;
-class TableConcreteElement;
 
-/**
- * The Visitor interface declares a set of visiting methods that can take
- * concrete elements of an object structure as arguments. These methods may have
- * the same names if the program is written in a language that supports
- * overloading, but the type of their parameters must be different.
- */
-class IVisitor {
+namespace classic {
+
+class Paragraph;
+class Image;
+class Table;
+
+/// Visitor interface.
+class Visitor {
  public:
-  virtual ~IVisitor() = default;
-
-  virtual void visitText(const TextConcreteElement* t) = 0;
-  virtual void visitImage(const ImageConcreteElement* i) = 0;
-  virtual void visitTable(const TableConcreteElement* t) = 0;
+  virtual ~Visitor() = default;
+  virtual void visit(const Paragraph& paragraph) = 0;
+  virtual void visit(const Image& image) = 0;
+  virtual void visit(const Table& table) = 0;
 };
 
-/**
- * The Element interface declares a method for “accepting” visitors.
- * This method should have one parameter declared with the type of the visitor
- * interface.
- */
-class IElement {
+/// Element interface.
+class Element {
  public:
-  virtual ~IElement() = default;
-  // [P1]
-  // if we implement exportHtml(), exportMarkdown(), exportJson(), etc.. here,
-  // every time we add a new export format we must modify ALL element classes.
-  // This violates the Open/Closed Principle
-  // and makes each element hold multiple unrelated behaviors.
-  // => Use `Visitor Pattern` to separate export logic from the element classes.
-
-  virtual void accept(IVisitor* visitor) = 0;
+  virtual ~Element() = default;
+  virtual void accept(Visitor& visitor) const = 0;
 };
 
-/**
- * The complex object structure
- */
-class DocumentConcreteStructure {
+class Paragraph : public Element {
+ public:
+  explicit Paragraph(std::string text) : text_{std::move(text)} {}
+  const std::string& text() const { return text_; }
+  // Second dispatch: `*this` has the static type Paragraph here.
+  void accept(Visitor& visitor) const override { visitor.visit(*this); }
+
  private:
-  std::vector<IElement*> elements_;
-
- public:
-  ~DocumentConcreteStructure() {
-    for (IElement* e : this->elements_) {
-      delete e;
-    }
-    elements_.clear();
-  }
-
-  void add(IElement* e) { elements_.push_back(e); }
-
-  std::vector<IElement*>& get() { return this->elements_; };
+  std::string text_;
 };
 
-/**
- * Each Concrete Element must implement the acceptance method.
- * The purpose of this method is to redirect the call to the proper visitor’s
- * method corresponding to the current element class. Be aware that even if a
- * base element class implements this method, all subclasses must still override
- * this method in their own classes and call the appropriate method on the
- * visitor object.
- */
-class TextConcreteElement : public IElement {
- private:
-  std::string content_;
-
+class Image : public Element {
  public:
-  explicit TextConcreteElement(std::string c) : content_{std::move(c)} {};
-  std::string getContent() const { return this->content_; }
+  explicit Image(std::string path) : path_{std::move(path)} {}
+  const std::string& path() const { return path_; }
+  void accept(Visitor& visitor) const override { visitor.visit(*this); }
 
-  void accept(IVisitor* visitor) override { visitor->visitText(this); }
-};
-
-class ImageConcreteElement : public IElement {
  private:
   std::string path_;
-
- public:
-  explicit ImageConcreteElement(std::string p) : path_{std::move(p)} {};
-
-  std::string getPath() const { return this->path_; }
-
-  void accept(IVisitor* visitor) override { visitor->visitImage(this); }
 };
 
-class TableConcreteElement : public IElement {
+class Table : public Element {
+ public:
+  Table(int rows, int columns) : rows_{rows}, columns_{columns} {}
+  int rows() const { return rows_; }
+  int columns() const { return columns_; }
+  void accept(Visitor& visitor) const override { visitor.visit(*this); }
+
  private:
-  int rows_, cols_;
+  int rows_;
+  int columns_;
+};
 
+class HtmlExporter : public Visitor {
  public:
-  TableConcreteElement(int r, int c) : rows_{r}, cols_{c} {};
-  int getRows() const { return this->rows_; }
-  int getCols() const { return this->cols_; }
-
-  void accept(IVisitor* visitor) override { visitor->visitTable(this); }
+  void visit(const Paragraph& paragraph) override {
+    LOG_S("    <p>" << paragraph.text() << "</p>");
+  }
+  void visit(const Image& image) override {
+    LOG_S("    <img src=\"" << image.path() << "\"/>");
+  }
+  void visit(const Table& table) override {
+    LOG_S("    <table rows=\"" << table.rows() << "\" cols=\""
+                               << table.columns() << "\"/>");
+  }
 };
 
-/**
- * Each Concrete Visitor implements several versions of the same behaviors,
- * tailored for different concrete element classes.
- */
-class HtmlExportConcreteVisitor : public IVisitor {
-  void visitText(const TextConcreteElement* t) override {
-    std::cout << "<p>" + t->getContent() + "</p>\n";
+class JsonExporter : public Visitor {
+ public:
+  void visit(const Paragraph& paragraph) override {
+    LOG_S(R"(    {"type": "text", "content": ")" << paragraph.text() << "\"}");
   }
-
-  void visitImage(const ImageConcreteElement* i) override {
-    std::cout << "<img src=\"" + i->getPath() + "\" />\n";
+  void visit(const Image& image) override {
+    LOG_S(R"(    {"type": "image", "path": ")" << image.path() << "\"}");
   }
+  void visit(const Table& table) override {
+    LOG_S(R"(    {"type": "table", "rows": )"
+          << table.rows() << ", \"cols\": " << table.columns() << '}');
+  }
+};
 
-  void visitTable(const TableConcreteElement* t) override {
-    std::cout << "<table>\n";
-    for (int r = 0; r < t->getRows(); ++r) {
-      std::cout << "  <tr>";
-      for (int c = 0; c < t->getCols(); ++c) {
-        std::cout << "<td>cell</td>";
-      }
-      std::cout << "</tr>\n";
+/// A visitor that computes something instead of printing.
+class WordCounter : public Visitor {
+ public:
+  void visit(const Paragraph& paragraph) override {
+    std::istringstream words(paragraph.text());
+    for (std::string word; words >> word;) {
+      ++count_;
     }
-    std::cout << "</table>\n";
   }
+  void visit(const Image& /*image*/) override {}
+  void visit(const Table& /*table*/) override {}
+  int count() const { return count_; }
+
+ private:
+  int count_{0};
 };
 
-class JsonExportConcreteVisitor : public IVisitor {
-  void visitText(const TextConcreteElement* t) override {
-    std::cout << R"({ "type": "text", "content": ")" << t->getContent()
-              << "\" }\n";
-  }
-  void visitImage(const ImageConcreteElement* i) override {
-    std::cout << R"({ "type": "image", "path": ")" << i->getPath() << "\" }\n";
-  }
-
-  void visitTable(const TableConcreteElement* t) override {
-    std::cout << R"({ "type": "table", "rows": )" << t->getRows()
-              << ", \"cols\": " << t->getCols() << " }\n";
-  }
-};
-
-class MarkdownExportConcreteVisitor : public IVisitor {
-  void visitText(const TextConcreteElement* t) override {
-    std::cout << t->getContent() << "\n\n";
-  }
-
-  void visitImage(const ImageConcreteElement* i) override {
-    std::cout << "![](" << i->getPath() << ")\n\n";
-  }
-
-  void visitTable(const TableConcreteElement* t) override {
-    for (int r = 0; r < t->getRows(); ++r) {
-      for (int c = 0; c < t->getCols(); ++c) {
-        std::cout << "| cell ";
-      }
-      std::cout << "|\n";
-    }
-    std::cout << "\n";
-  }
-};
-
-/**
- * clients aren’t aware of all the concrete element classes because they work
- * with objects from that collection via some abstract interface.
- */
-namespace client {
-void clientCode(DocumentConcreteStructure* const doc, IVisitor* const visitor) {
-  // [P2] Instead of adding exportHtml(), exportMarkdown(), exportJson() in each
-  // element, we use the Visitor pattern to separate data from behavior. This
-  // avoids bloating element classes with multiple unrelated functions and makes
-  // it easier to add new export formats without modifying the elements.
-  for (IElement* ele : doc->get()) {
-    ele->accept(visitor);
-  }
-}
-}  // namespace client
 void run() {
-  auto* document = new DocumentConcreteStructure();
-  // Add images
-  document->add(new ImageConcreteElement("header.png"));
-  document->add(new ImageConcreteElement("diagram1.png"));
-  document->add(new ImageConcreteElement("chart.png"));
+  std::vector<std::unique_ptr<Element>> document;
+  document.push_back(
+      std::make_unique<Paragraph>("Visitor separates data from behavior."));
+  document.push_back(std::make_unique<Image>("diagram.png"));
+  document.push_back(std::make_unique<Table>(3, 4));
+  document.push_back(
+      std::make_unique<Paragraph>("New exports need no element changes."));
 
-  // Add text paragraphs
-  document->add(new TextConcreteElement(
-      "Introduction: This document demonstrates the Visitor pattern."));
-  document->add(
-      new TextConcreteElement("Section 1: Visitor allows adding new operations "
-                              "without modifying elements."));
-  document->add(new TextConcreteElement(
-      "Section 2: Elements are data holders, visitors implement behaviors."));
+  const auto apply = [&document](Visitor& visitor) {
+    for (const auto& element : document) {
+      element->accept(visitor);
+    }
+  };
 
-  // Add tables
-  document->add(
-      new TableConcreteElement(3, 4));  // e.g., 3 rows x 4 columns table
-  document->add(new TableConcreteElement(2, 2));  // smaller table
-  document->add(new TableConcreteElement(4, 3));  // another table
+  LOG_SECTION("HTML export");
+  HtmlExporter html;
+  apply(html);
 
-  // Add more text
-  document->add(new TextConcreteElement(
-      "Conclusion: Using Visitor pattern makes code open for extension but "
-      "closed for modification."));
+  LOG_SECTION("JSON export");
+  JsonExporter json;
+  apply(json);
 
-  IVisitor* visitor = new HtmlExportConcreteVisitor();
-  std::cout << " ===HTML Export ===\n";
-  client::clientCode(document, visitor);
-  std::cout << " ==================\n";
-
-  visitor = new JsonExportConcreteVisitor();
-  std::cout << " ===JSON Export ===\n";
-  client::clientCode(document, visitor);
-  std::cout << " ==================\n";
-
-  visitor = new MarkdownExportConcreteVisitor();
-  std::cout << " ===MD Export ===\n";
-  client::clientCode(document, visitor);
-  std::cout << " ==================\n";
-  delete visitor;
-  delete document;
+  LOG_SECTION("Word count (a visitor that collects data)");
+  WordCounter counter;
+  apply(counter);
+  LOG_S("    words in paragraphs: " << counter.count());
 }
-}  // namespace visitor
+
+}  // namespace classic
+
+namespace with_variant {
+
+struct Paragraph {
+  std::string text;
+};
+struct Image {
+  std::string path;
+};
+
+using Element = std::variant<Paragraph, Image>;
+
+/// Helper that merges several lambdas into one overloaded function object.
+template <typename... Lambdas>
+struct Overloaded : Lambdas... {
+  using Lambdas::operator()...;
+};
+
+void run() {
+  LOG_SECTION("Modern alternative: std::variant + std::visit");
+  const std::vector<Element> document{Paragraph{"no base classes needed"},
+                                      Image{"photo.jpg"}};
+  for (const Element& element : document) {
+    std::visit(
+        Overloaded{
+            [](const Paragraph& p) { LOG_S("    paragraph: " << p.text); },
+            [](const Image& i) { LOG_S("    image: " << i.path); },
+        },
+        element);
+  }
+}
+
+}  // namespace with_variant
+
 }  // namespace
 
-#include "ExampleRegistry.h"
-
-class VisitorExample : public IExample {
- public:
-  std::string group() const override { return "dp/behavioral"; }
-  std::string name() const override { return "Visitor"; }
-  std::string description() const override { return "Visitor Pattern Example"; }
-  void execute() override { visitor::run(); }
-};
-
-REGISTER_EXAMPLE(VisitorExample);
+LAB_EXAMPLE("Visitor",
+            "add operations without changing element classes; std::variant "
+            "alternative") {
+  classic::run();
+  with_variant::run();
+}

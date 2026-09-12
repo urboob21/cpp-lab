@@ -1,52 +1,60 @@
+// -----------------------------------------------------------------------------
+// Simple TCP client
+//
+//   socket()   create an endpoint
+//   connect()  open a connection to the server's address and port
+//   send()     write bytes, recv() reads the reply
+//   close()    end the connection
+//
+// Start SimpleTCPServer or MultiTCPServer in another terminal first, then type
+// lines here. Each line is sent with a trailing '\n' because the server's
+// protocol is line-based: std::getline removes the newline, and without it the
+// server could not tell where a command such as "Q" ends. (telnet sends "\r\n".)
+// -----------------------------------------------------------------------------
+
+#include <exception>
 #include <iostream>
-#include "ExampleRegistry.h"
+#include <string>
+
 #include "TCPClient.h"
+#include "lab/Example.h"
+#include "lab/Logger.h"
 
 namespace {
 
 void run() {
-  try {
-    TCPClient client("127.0.0.1", 8080);
+  net::TCPClient client{"127.0.0.1", 8080};
+  if (!client.connect()) {
+    LOG("Is the server running? Start SimpleTCPServer in another terminal "
+        "first.");
+    return;
+  }
+  LOG_S("connected to " << client.host() << ':' << client.port());
+  std::cout << client.receive() << std::flush;  // welcome message
 
-    if (!client.connect()) {
-      std::cout << "connect failed\n";
-      return;
+  std::string line;
+  while (std::getline(std::cin, line)) {
+    client.send(line + "\n");
+    const std::string reply = client.receive();
+    if (reply.empty()) {
+      LOG("the server closed the connection");
+      break;
     }
-    std::cout << "connected to " << "host: " << client.getHost()
-              << " port:" << client.getPort() << "\n";
-    std::string response = client.receive();
-    std::cout << response << std::endl;
-    std::string msg;
-    while (true) {
-      if (!std::getline(std::cin, msg)) {
-        std::cout << "get line failed" << std::endl;
-        break;
-      };
-
-      // TODO(phong-nguyen): why we need \n here
-      client.send(msg + "\n");
-      response = client.receive();
-      std::cout << response;
+    std::cout << "echo: " << reply << std::flush;
+    if (line == "Q" || line == "SHUTDOWN") {
+      break;
     }
-
-    client.close();
-  } catch (const std::exception& e) {
-    // Connection closed by foreign host
-    std::cout << "error: " << e.what() << std::endl;
   }
 }
 
 }  // namespace
 
-class SimpleTCPClient : public IExample {
- public:
-  std::string group() const override { return "socket/tcp"; }
-
-  std::string name() const override { return "SimpleTCPClient"; }
-
-  std::string description() const override { return "Simple TCP Client"; }
-
-  void execute() override { run(); }
-};
-
-REGISTER_EXAMPLE(SimpleTCPClient);
+LAB_EXAMPLE("SimpleTCPClient",
+            "type lines and send them to the echo server on 127.0.0.1:8080",
+            lab::kInteractive) {
+  try {
+    run();
+  } catch (const std::exception& e) {
+    LOG_S("client error: " << e.what());
+  }
+}

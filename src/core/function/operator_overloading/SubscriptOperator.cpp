@@ -1,44 +1,97 @@
-// cppcheck-suppress-file[]
+// -----------------------------------------------------------------------------
+// Overloading operator[] (and operator() for 2D access)
+//
+//   T&       operator[](std::size_t index);        read/write for non-const objects
+//   const T& operator[](std::size_t index) const;  read-only for const objects
+//
+//   - Provide both overloads; the compiler picks one by the constness of the
+//     object.
+//   - Like std::vector, operator[] is usually unchecked (fast) and a separate
+//     at() checks the bounds and throws.
+//   - Before C++23 operator[] takes exactly one argument, so matrices often
+//     use operator()(row, column) instead.
+//
+// Reference: https://en.cppreference.com/w/cpp/language/operators#Array_subscript_operator
+// -----------------------------------------------------------------------------
 
-// >> <<
-#include <iostream>
-#include "ExampleRegistry.h"
+#include <array>
+#include <cassert>
+#include <cstddef>
+#include <stdexcept>
+#include <string>
+
+#include "lab/Example.h"
+#include "lab/Logger.h"
 
 namespace {
 
 class IntList {
- private:
-  int m_list_[10]{
-      0, 1, 2, 3, 4,
-      5, 6, 7, 8, 9};  // give this class some initial state for this example
-
  public:
-  // For non-const objects: can be used for assignment
-  int& operator[](int index) { return m_list_[index]; }
+  int& operator[](std::size_t index) {
+    assert(index < values_.size() &&
+           "index out of range");  // checked in Debug only
+    return values_[index];
+  }
 
-  // For const objects: can only be used for access
-  // This function could also return by value if the type is cheap to copy
-  const int& operator[](int index) const { return m_list_[index]; }
+  const int& operator[](std::size_t index) const {
+    assert(index < values_.size() && "index out of range");
+    return values_[index];
+  }
+
+  int& at(std::size_t index) {
+    if (index >= values_.size()) {
+      throw std::out_of_range("IntList::at: index " + std::to_string(index));
+    }
+    return values_[index];
+  }
+
+  std::size_t size() const { return values_.size(); }
+
+ private:
+  std::array<int, 10> values_{0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+};
+
+class Matrix {
+ public:
+  double& operator()(std::size_t row, std::size_t column) {
+    return cells_[row * kColumns + column];
+  }
+  double operator()(std::size_t row, std::size_t column) const {
+    return cells_[row * kColumns + column];
+  }
+
+ private:
+  static constexpr std::size_t kColumns = 3;
+  std::array<double, 2 * kColumns> cells_{};
 };
 
 void run() {
-  IntList list{};
-  list[2] = 3;  // okay: calls non-const version of operator[]
-  std::cout << list[2] << '\n';
+  LOG_SECTION("const and non-const operator[]");
+  IntList list;
+  list[2] = 30;  // non-const overload returns int&
+  LOG_S("list[2] = " << list[2]);
 
-  const IntList clist{};
-  // clist[2] = 3; // compile error: clist[2] returns const reference, which we can't assign to
-  std::cout << clist[2] << '\n';
+  const IntList read_only;
+  // read_only[2] = 3;  // error: const overload returns const int&
+  LOG_S("read_only[2] = " << read_only[2]);
+
+  try {
+    list.at(10) = 1;
+  } catch (const std::out_of_range& e) {
+    LOG_S("list.at(10) throws: " << e.what());
+  }
+
+  LOG_SECTION("operator() for two indices");
+  Matrix matrix;
+  matrix(1, 2) = 4.5;
+  const Matrix& view = matrix;
+  LOG_S("matrix(1, 2) = " << view(1, 2) << ", matrix(0, 0) = " << view(0, 0));
 }
+
 }  // namespace
 
-class SubscriptOperator : public IExample {
- public:
-  std::string group() const override { return "core/overloading_operator"; }
-  std::string name() const override { return "SubscriptOperator"; }
-  std::string description() const override { return ""; }
-
-  void execute() override { run(); }
-};
-
-REGISTER_EXAMPLE(SubscriptOperator);
+LAB_EXAMPLE(
+    "SubscriptOperator",
+    "operator[] const/non-const overloads, bounds-checked at(), operator()") {
+  run();
+}

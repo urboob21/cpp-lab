@@ -1,21 +1,26 @@
+// Definitions of the entities with EXTERNAL linkage used by Linkage.cpp.
+// They must be defined in the same namespace as their declarations in
+// External.h, otherwise the linker cannot match them.
+
 #include "External.h"
-#include <iostream>
 
-namespace external {  // We must define the variable inside the same namespace as its extern declaration;
-                      // otherwise the linker cannot find the correct symbol.
+#include "lab/Logger.h"
 
-// 1. Non-Static global variable/ function
+namespace external {
+
+// 1. Non-static global variables and functions have external linkage.
 int non_static_var{1};
+
 void nonStaticFnc() {
-  std::cout << "nonStaticFnc\n";
+  LOG("external::nonStaticFnc() defined in External.cpp");
 }
 
-// 2. Extern Const/constexpr
+// 2. const variables have INTERNAL linkage by default; `extern` makes them external.
 extern const int kExternConstVar{200};
 
-// 3. Namespaces
+// 3. Variables inside a named namespace behave like globals.
 namespace name {
 int namespace_var = 123;
-}
+}  // namespace name
 
 }  // namespace external

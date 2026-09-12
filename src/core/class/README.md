@@ -1,4 +1,24 @@
 # Classes
+
+| Example | Topic |
+|---|---|
+| `Encapsulation` | private data, invariants, getters and setters |
+| `Constructor` | initializer lists, default/delegating/copy/move, `explicit` |
+| `Destructor` | destruction order, virtual destructors, RAII, stack unwinding |
+| `ShallowDeepCopying` | why copying a pointer member is not copying the data |
+| `RuleOfThreeFiveZero` | which special member functions to write, and when to write none |
+| `Relationship` | composition, aggregation, association, dependency, nesting |
+| `Friend` | friend functions, friend members, friend classes |
+| `Binding` | early (static) vs late (virtual) binding, hiding vs overriding |
+| `VirtualBase` | the diamond problem and virtual inheritance |
+| `Inheritance` | public, protected and private inheritance, override, final and inheriting constructors *(draft)* |
+| `AbstractInterface` | pure virtual functions, abstract bases, the non-virtual interface idiom *(draft)* |
+| `StaticMember` | static data members and functions, inline static, constexpr static and instance counters *(draft)* |
+| `MoveSemantics` | move constructor and assignment, when moves happen, moved-from state, copy elision *(draft)* |
+| `DeducingThis` | explicit object parameters: one member function instead of const/non-const pairs *(draft)* |
+
+---
+# Classes
 - **A class** is a user-defined blueprint used to create objects. It defines the properties and behaviors that all objects of that type share.
 - **An object** is an instance of a class. It represents a real entity and contains actual values for the class’s attributes.
 - **An instance** is a specific object created from a class. (In practice, “object” and “instance” are often used interchangeably.)
@@ -18,6 +38,7 @@
 ### 1.1. Non Member Function
 - It serves the same kind of role as the package access specifier in Java.
 - `a << b` C++ tries in this order:
+
 ```cpp
 a.operator<<(b)
 operator<<(a, b) (non-member function)
@@ -41,6 +62,7 @@ operator OP (type_of_X, type_of_Y)
 - The member does not know about the existence of the class
 
 - UML:
+
 ```cpp
 +------------------------+
 |          Car           |
@@ -83,6 +105,7 @@ public:
 - The member does not know about the existence of the class
 
 - UML:
+
 ```cpp
 +-----------------------------+
 |        Department           |
@@ -122,6 +145,7 @@ public:
 - The associated member does not have its existence managed by the class
 - The associated member may or may not know about the existence of the class
 - UML
+
 ```cpp
 +---------------------+                 +---------------------+
 |       Doctor        |-----------------|       Patient       |
@@ -150,6 +174,7 @@ public:
 -  One class uses another class to perform a task. 
 -  It is temporarily created, used, and then destroyed, or passed into a member function from an external source.
 - UML
+
 ```cpp
 +---------------------+
 |         Car         |
@@ -185,6 +210,7 @@ public:
 ### 2.5. Container
 -  The class one class provides a container to hold multiple objects of another type
 - UML
+
 ```cpp
 #include <vector>
 
@@ -226,6 +252,7 @@ private:
 
 ## 2.6. Inheritance
 - **Is-a**
+
 ```cpp
 +----------------------+
 |        Animal        |
@@ -255,6 +282,7 @@ public:
 
 ## 2.7 Embedded a.k.a Nested/Inner Class
 - Type-level containment
+
 ```cpp
 +----------------------+
 |        Car           |

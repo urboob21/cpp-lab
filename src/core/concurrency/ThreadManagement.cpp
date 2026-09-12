@@ -1,164 +1,157 @@
-#include <chrono>  // chrono::millisecond()
+// -----------------------------------------------------------------------------
+// Managing std::thread
+//
+//   join()       : wait for the thread to finish
+//   detach()     : let it run on its own; you can no longer wait for it
+//   joinable()   : true while the std::thread still owns a thread of execution
+//
+// A std::thread that is still joinable when destroyed calls std::terminate().
+// Protect against early returns and exceptions with RAII:
+//   - a small guard class that joins in its destructor, or
+//   - std::jthread (C++20), which joins automatically and supports stop requests.
+//
+// Reference: https://en.cppreference.com/w/cpp/thread/thread
+// -----------------------------------------------------------------------------
+
+#include <chrono>
+#include <future>
 #include <stdexcept>
+#include <stop_token>
 #include <thread>
-#include "ExampleRegistry.h"
-#include "Logger.h"
+
+#include "lab/Example.h"
+#include "lab/Logger.h"
 
 namespace {
 
-/**
-   * @brief Check whether the thread is joinable
-   * joinable() tells you whether a std::thread is still owned and needs to be handled (joined or detached).
-   * @param thread 
-   */
-void checkJoinable(std::thread& thread) {
-  if (thread.joinable()) {
-    LOG("Thread Object is joinable.");
-  } else {
-    LOG("Thread Object is not joinable.");
-  }
-}
-}  // namespace
+using std::chrono::milliseconds;
 
-/**
- * @brief Thread Exception Example
- */
-namespace exception_before_join {
+void logJoinable(const std::thread& thread) {
+  LOG_S("  joinable() = " << std::boolalpha << thread.joinable());
+}
+
+namespace join {
+
+void run() {
+  LOG_SECTION("join()");
+  LOG_S("hardware threads available: " << std::thread::hardware_concurrency());
+
+  std::thread worker;  // default-constructed: no thread yet
+  logJoinable(worker);
+
+  worker = std::thread([] {
+    for (int i = 0; i < 3; ++i) {
+      LOG_S("  worker step " << i << " on thread "
+                             << std::this_thread::get_id());
+      std::this_thread::sleep_for(milliseconds(5));
+    }
+  });
+  logJoinable(worker);
+
+  for (int i = 0; i < 3; ++i) {
+    LOG_S("  main step " << i << " on thread " << std::this_thread::get_id());
+    std::this_thread::sleep_for(milliseconds(5));
+  }
+
+  worker.join();  // blocks until the worker has finished
+  logJoinable(worker);
+}
+
+}  // namespace join
+
+namespace detach {
+
+void run() {
+  LOG_SECTION("detach()");
+  std::promise<void> finished;
+  std::future<void> finished_future = finished.get_future();
+
+  std::thread background([done = std::move(finished)]() mutable {
+    std::this_thread::sleep_for(milliseconds(20));
+    LOG("  detached thread: finished its work");
+    done.set_value();
+  });
+  background.detach();
+  logJoinable(background);
+
+  // After detach() nobody can join the thread. Something else must tell us
+  // when it is done - here a promise. A detached thread still running when
+  // main() returns is killed abruptly, so detach rarely is the right tool.
+  finished_future.wait();
+  LOG("  main: got the 'finished' signal");
+}
+
+}  // namespace detach
+
+namespace exception_safety {
+
+/// Joins the thread when the guard goes out of scope - also during stack
+/// unwinding after an exception.
 class ThreadGuard {
  public:
-  explicit ThreadGuard(std::thread& thread);
-  ~ThreadGuard();
-
-  // no copy & move
-  ThreadGuard operator=(const ThreadGuard& other) = delete;
-  ThreadGuard(const ThreadGuard& other) = delete;
-  ThreadGuard& operator=(ThreadGuard&& other) noexcept = delete;
-  ThreadGuard(ThreadGuard&& other) noexcept = delete;
+  explicit ThreadGuard(std::thread& thread) : thread_{thread} {}
+  ~ThreadGuard() {
+    if (thread_.joinable()) {
+      LOG("  ThreadGuard: joining in the destructor");
+      thread_.join();
+    }
+  }
+  ThreadGuard(const ThreadGuard&) = delete;
+  ThreadGuard& operator=(const ThreadGuard&) = delete;
 
  private:
   std::thread& thread_;
 };
 
-ThreadGuard::ThreadGuard(std::thread& thread) : thread_{thread} {}
-
-ThreadGuard::~ThreadGuard() {
-  if (thread_.joinable()) {
-    thread_.join();
-  }
-}
-
-void callable() {
-  LOG("begin");
-  std::this_thread::sleep_for(std::chrono::milliseconds(5000));
-  LOG("end");
-}
-
-void exceptionThrow() {
-  throw std::runtime_error("callable runtime exception");
+void mayThrow() {
+  throw std::runtime_error("error while the worker is running");
 }
 
 void run() {
-  LOG("Thread Exception Example Begin");
-  std::thread thread(callable);
-
-  // try {
-  //   exceptionThrow();
-  //   thread.join();
-  // } catch (...) {
-  //   thread.join();
-  // }
-
-  ThreadGuard tg(thread);
+  LOG_SECTION("Exceptions and RAII (ThreadGuard)");
   try {
-    exceptionThrow();
-  } catch (...) {}
-  LOG("Thread Exception Example End");
+    std::thread worker([] {
+      std::this_thread::sleep_for(milliseconds(50));
+      LOG("  worker: done");
+    });
+    const ThreadGuard guard(worker);
+    // Without the guard, this throw would destroy a joinable std::thread and
+    // call std::terminate().
+    mayThrow();
+  } catch (const std::exception& e) {
+    LOG_S("  caught: " << e.what());
+  }
 }
 
-}  // namespace exception_before_join
+}  // namespace exception_safety
 
-/**
- * @brief Thread Detach Example
- */
-namespace detach {
-void foo() {
-  LOG("begin");
-  std::this_thread::sleep_for(std::chrono::microseconds(1000));
-  LOG("end");
-}
-
-void bar() {
-  LOG("begin");
-  std::this_thread::sleep_for(std::chrono::microseconds(2000));
-  LOG("end");
-}
+namespace jthread {
 
 void run() {
-  LOG("Thread Detach Example Begin");
-
-  std::thread foo_thread(foo);
-  std::thread bar_thread(bar);
-
-  bar_thread
-      .detach();  // https://stackoverflow.com/questions/22803600/when-should-i-use-stdthreaddetach
-  foo_thread.join();  // wait until foo_thread finishes
-
-  LOG("Thread Detach Example End");
-}
-}  // namespace detach
-
-/**
- * @brief Thread Join Example
- */
-namespace join {
-void callable() {
-  LOG("begin");
-  for (size_t i = 0; i < 10; ++i) {
-    LOG(std::to_string(i));
-    std::this_thread::sleep_for(std::chrono::milliseconds(5));  // sleep for 5ms
+  LOG_SECTION("std::jthread (C++20): auto-join and cooperative stop");
+  {
+    std::jthread ticker([](const std::stop_token& token) {
+      int tick = 0;
+      while (
+          !token.stop_requested()) {  // the thread checks the stop flag itself
+        LOG_S("  tick " << ++tick);
+        std::this_thread::sleep_for(milliseconds(10));
+      }
+      LOG("  stop requested, ticker exits");
+    });
+    std::this_thread::sleep_for(milliseconds(35));
+    LOG("  leaving scope: ~jthread calls request_stop() and join()");
   }
-  LOG("end");
 }
 
-void run() {
-  unsigned int threads_num = std::thread::hardware_concurrency();
-  std::cout << "The number of hardware thread contexts: " << threads_num
-            << '\n';
+}  // namespace jthread
 
-  LOG("Thread Join Example Begin");
+}  // namespace
 
-  // thread object
-  std::thread user_thread;
-  checkJoinable(user_thread);
-  user_thread = std::thread(callable);
-  checkJoinable(user_thread);
-
-  for (size_t i = 0; i < 10; ++i) {
-    LOG(std::to_string(i));
-    std::this_thread::sleep_for(std::chrono::milliseconds(5));  // sleep for 5ms
-  }
-
-  // sync point, block the execution of the caller until the thread executation(callable) finished
-  user_thread.join();
-  checkJoinable(user_thread);
-
-  LOG("Thread Join Example End");
+LAB_EXAMPLE("ThreadManagement",
+            "join, detach, joinable, RAII thread guards and std::jthread") {
+  join::run();
+  detach::run();
+  exception_safety::run();
+  jthread::run();
 }
-}  // namespace join
-
-class ThreadManagement : public IExample {
- public:
-  std::string group() const override { return "core/concurrency"; }
-  std::string name() const override { return "ThreadManagement"; }
-  std::string description() const override {
-    return "The examples for <thread>";
-  }
-
-  void execute() override {
-    join::run();
-    detach::run();
-    exception_before_join::run();
-  }
-};
-
-REGISTER_EXAMPLE(ThreadManagement);
