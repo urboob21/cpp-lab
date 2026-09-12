@@ -34,9 +34,10 @@ class MenuRunnerTest : public testing::Test {
     g_second_runs = 0;
     g_interactive_runs = 0;
     registry.add("/x/src/topic/basics/A.cpp", "First", "first example", first);
-    registry.add("/x/src/topic/advanced/B.cpp", "Second", "second example", second);
-    registry.add("/x/src/topic/advanced/C.cpp", "Server", "needs a client", interactive,
-                 lab::kInteractive);
+    registry.add("/x/src/topic/advanced/B.cpp", "Second", "second example",
+                 second);
+    registry.add("/x/src/topic/advanced/C.cpp", "Server", "needs a client",
+                 interactive, lab::kInteractive);
   }
 
   lab::Registry registry;
@@ -62,6 +63,12 @@ TEST_F(MenuRunnerTest, RunAllSkipsInteractiveExamples) {
   EXPECT_EQ(g_second_runs, 1);
   EXPECT_EQ(g_interactive_runs, 0);
   EXPECT_NE(out.str().find("skipped 1 interactive"), std::string::npos);
+}
+
+TEST_F(MenuRunnerTest, RunAllReportsAFilterThatMatchesNothing) {
+  EXPECT_EQ(lab::runAll(registry, "nothing matches this", out), 0);
+  EXPECT_EQ(g_first_runs + g_second_runs, 0);
+  EXPECT_NE(out.str().find("No example matches"), std::string::npos);
 }
 
 TEST_F(MenuRunnerTest, RunAllHonorsTheFilter) {

@@ -75,10 +75,14 @@ int runAll(const Registry& registry, std::string_view filter,
     }
   }
 
-  out << '\n'
-      << std::string(kRuleWidth, '=') << '\n'
-      << "Ran " << ran << " example(s), skipped " << skipped
-      << " interactive, " << failed.size() << " failed.\n";
+  out << '\n' << std::string(kRuleWidth, '=') << '\n';
+  if (ran == 0 && skipped == 0) {
+    out << "No example matches \"" << filter << "\" (see --list).\n"
+        << std::flush;
+    return 0;
+  }
+  out << "Ran " << ran << " example(s), skipped " << skipped << " interactive, "
+      << failed.size() << " failed.\n";
   for (const std::string& id : failed) {
     out << "  FAILED: " << id << '\n';
   }

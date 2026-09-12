@@ -32,5 +32,5 @@ echo "Report: coverage_gcovr/index.html"
 
 # Open it in a browser when there is a desktop session
 if command -v xdg-open >/dev/null 2>&1 && [ -n "${DISPLAY:-}" ]; then
-  xdg-open coverage_gcovr/index.html
+  xdg-open coverage_gcovr/index.html >/dev/null 2>&1 || true
 fi

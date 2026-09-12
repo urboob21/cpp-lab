@@ -20,7 +20,9 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     # Code coverage configuration (see scripts/gen_coverage_*.sh)
     if(ENABLE_COVERAGE)
         message(STATUS "Enabling coverage flags")
-        target_compile_options(cpplab_options INTERFACE --coverage -O0 -g)
+        # -fprofile-update=atomic: the RaceCondition example increments a counter from
+        # several threads on purpose, which would also corrupt gcov's own counters.
+        target_compile_options(cpplab_options INTERFACE --coverage -O0 -g -fprofile-update=atomic)
         target_link_options(cpplab_options INTERFACE --coverage)
     endif()
 
