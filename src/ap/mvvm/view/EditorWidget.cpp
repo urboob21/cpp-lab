@@ -31,6 +31,8 @@ mvvm::EditorWidget::EditorWidget(std::shared_ptr<SharedDataVM> vm)
 }
 
 void mvvm::EditorWidget::onDataChanged(const std::string& newData) {
+  // Only touch the entry when the text really changed: set_text() would move
+  // the cursor and could start another round of notifications.
   if (entry_.get_text() != Glib::ustring(newData)) {
     entry_.set_text(newData);
   }

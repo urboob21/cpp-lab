@@ -1,177 +1,136 @@
-// Mediator is a behavioral design pattern that lets you reduce chaotic
-// dependencies between objects. The pattern restricts direct communications
-// between the objects and forces them to collaborate only via a mediator
-// object. Usage examples: The most popular usage of the Mediator pattern in C++
-// code is facilitating communications between GUI components of an app. The
-// synonym of the Mediator is the `Controller` part of MVC pattern.
-// Appicability:
-// (*)   when your collection has a complex data structure under the hood, but
-// you want to hide its complexity from clients (either for convenience or
-// security reasons).
-// (**)  when you can’t reuse a component in a different program because it’s
-// too dependent on other components.
-// (***) when you find yourself creating tons of component subclasses just to
-// reuse some basic behavior in various contexts.
+// -----------------------------------------------------------------------------
+// Mediator (behavioral pattern)
+//
+// Reduces chaotic dependencies between objects: instead of talking to each
+// other directly, components talk only to a mediator that coordinates them.
+//
+// Problem: with N aircraft that negotiate the runway directly, every aircraft
+// must know every other aircraft (N * (N - 1) connections) and the landing
+// rules are spread over all of them.
+// Solution: a control tower (mediator) owns the rules; each aircraft only
+// knows the tower.
+//
+// Use it when:
+//   - classes are hard to change because they are tightly coupled to many others
+//   - a component cannot be reused because it depends on too many others
+//   - coordination logic is scattered over many classes
+//
+// Participants:
+//   Mediator           ControlTower interface
+//   ConcreteMediator   Tower - implements the coordination rules
+//   Component          Aircraft - knows only the mediator interface
+//
+// Related: the Controller in MVC plays a mediator role (see src/ap).
+// UML: docs/uml/dp/behavioral_mediator.drawio.svg
+// -----------------------------------------------------------------------------
 
-// UML: docs/uml/patterns_behavioral_mediator.drawio.svg
-
-#include <iostream>
+#include <deque>
 #include <string>
 #include <utility>
-#include <vector>
+
+#include "lab/Example.h"
+#include "lab/Logger.h"
+
 namespace {
-namespace mediator {
 
-enum class Event {
-  kCreate = 0,
-  kRead,
-  kUpdate,
-  kDelete,
+class Aircraft;
+
+/// Mediator interface.
+class ControlTower {
+ public:
+  virtual ~ControlTower() = default;
+  virtual void requestLanding(Aircraft& aircraft) = 0;
+  virtual void reportLanded(Aircraft& aircraft) = 0;
 };
 
-inline const char* getEventName(const Event& e) {
-  switch (e) {
-    case Event::kCreate:
-      return "CREATE";
-    case Event::kRead:
-      return "READ";
-    case Event::kUpdate:
-      return "UPDATE";
-    case Event::kDelete:
-      return "DELETE";
+/// Component: communicates only through the tower.
+class Aircraft {
+ public:
+  Aircraft(std::string callsign, ControlTower& tower)
+      : callsign_{std::move(callsign)}, tower_{tower} {}
+
+  const std::string& callsign() const { return callsign_; }
+
+  void requestLanding() {
+    LOG_S("  " << callsign_ << ": requesting landing");
+    tower_.requestLanding(*this);
   }
-  return "invalid_event";
-}
 
-class IComponent {
- public:
-  virtual ~IComponent() = default;
+  // Called by the tower.
+  void clearToLand() {
+    cleared_ = true;
+    LOG_S("  " << callsign_ << ": cleared to land");
+  }
+  void hold() const { LOG_S("  " << callsign_ << ": holding pattern"); }
 
-  virtual void send(const Event& e) = 0;
-  virtual void receive(const Event& e) = 0;
-};
+  void land() {
+    if (!cleared_) {
+      LOG_S("  " << callsign_ << ": cannot land without clearance");
+      return;
+    }
+    LOG_S("  " << callsign_ << ": touchdown");
+    cleared_ = false;
+    tower_.reportLanded(*this);
+  }
 
-/**
- * The Mediator interface declares methods of communication with components,
- * which usually include just a single notification method. Components may pass
- * any context as arguments of this method, including their own objects, but
- * only in such a way that no coupling occurs between a receiving component and
- * the sender’s class.
- */
-class IMediator {
- public:
-  virtual ~IMediator() = default;
-  virtual void registerComponent(IComponent* const& c) = 0;
-  virtual void notify(IComponent* sender, const Event& e) = 0;
-};
-
-/**
- * Concrete Mediators implement cooperative behavior by coordinating several
- * components. Concrete mediators often keep references to all components they
- * manage and sometimes even manage their lifecycle.
- */
-class ComponentMediator : public IMediator {
  private:
-  std::vector<IComponent*> components_;
+  std::string callsign_;
+  ControlTower& tower_;
+  bool cleared_{false};
+};
 
+/// Concrete mediator: one runway, first come first served.
+class Tower : public ControlTower {
  public:
-  void registerComponent(IComponent* const& c) override {
-    components_.push_back(c);
-  }
-
-  void notify(IComponent* const sender, const Event& e) override {
-    for (auto* c : components_) {
-      if (c != sender) {
-        c->receive(e);
-      }
+  void requestLanding(Aircraft& aircraft) override {
+    if (runway_user_ == nullptr) {
+      runway_user_ = &aircraft;
+      aircraft.clearToLand();
+    } else {
+      waiting_.push_back(&aircraft);
+      LOG_S("  [tower] runway busy with "
+            << runway_user_->callsign() << ", " << aircraft.callsign()
+            << " is number " << waiting_.size() << " in the queue");
+      aircraft.hold();
     }
   }
-};
 
-/**
- * Components are various classes that contain some business logic.
- * Each component has a reference to a mediator, declared with the type of the
- * mediator interface. The component isn’t aware of the actual class of the
- * mediator, so you can reuse the component in other programs by linking it to a
- * different mediator.
- */
-class AbstractComponent : public IComponent {
+  void reportLanded(Aircraft& aircraft) override {
+    LOG_S("  [tower] " << aircraft.callsign() << " vacated the runway");
+    runway_user_ = nullptr;
+    if (!waiting_.empty()) {
+      Aircraft* next = waiting_.front();
+      waiting_.pop_front();
+      runway_user_ = next;
+      next->clearToLand();
+    }
+  }
+
  private:
-  const std::string id_;
-
- protected:
-  IMediator* mediator_;
-  void log(const Event& e, const std::string& msg) const {
-    std::cout << "\t" + msg + "-id:" + id_ + "-event:" + getEventName(e) + "\n";
-  }
-
- public:
-  explicit AbstractComponent(std::string  id,
-                             IMediator* const m = nullptr)
-      : id_{std::move(id)}, mediator_{m} {};
+  Aircraft* runway_user_{nullptr};
+  std::deque<Aircraft*> waiting_;
 };
-
-/**
- * Concrete Components implement various functionality. They don't depend on
- * other components. They also don't depend on any concrete mediator classes.
- */
-class ConreteComponent : public AbstractComponent {
- public:
-  explicit ConreteComponent(const std::string& id, IMediator* const m = nullptr)
-      : AbstractComponent{id, m} {}
-
-  void send(const Event& e) override {
-    log(e, "[SEND]");
-    if (mediator_ != nullptr)
-      mediator_->notify(this, e);
-  }
-
-  void receive(const Event& e) override {
-    log(e, "[RECV]");
-    // Additional handling logic can go here
-  }
-};
-
-namespace client {
-void clientCode(IComponent* comp) {
-  comp->send(Event::kRead);
-}
-}  // namespace client
 
 void run() {
-  IMediator* mediator = new ComponentMediator();
-  IComponent* c1 = new ConreteComponent("1763700876", mediator);
-  IComponent* c2 = new ConreteComponent("1763700882", mediator);
-  IComponent* c3 = new ConreteComponent("1763700899", mediator);
-  IComponent* c4 = new ConreteComponent("1763700900", mediator);
+  LOG_SECTION("Three aircraft, one runway, coordinated by the tower");
+  Tower tower;
+  Aircraft alpha{"VN-101", tower};
+  Aircraft bravo{"SQ-202", tower};
+  Aircraft charlie{"JL-303", tower};
 
-  // Only c1, c3, c4 receive notifications.
-  mediator->registerComponent(c1);
-  mediator->registerComponent(c3);
-  mediator->registerComponent(c4);
+  alpha.requestLanding();
+  bravo.requestLanding();
+  charlie.requestLanding();
+  charlie.land();  // not cleared yet
 
-  // c2 triggers event => observed by others
-  client::clientCode(c2);
-
-  delete mediator;
-  delete c1;
-  delete c2;
-  delete c3;
-  delete c4;
+  alpha.land();  // the tower now clears bravo
+  bravo.land();  // ...then charlie
+  charlie.land();
 }
-}  // namespace mediator
+
 }  // namespace
 
-#include "ExampleRegistry.h"
-
-class MediatorExample : public IExample {
- public:
-  std::string group() const override { return "dp/behavioral"; }
-  std::string name() const override { return "Mediator"; }
-  std::string description() const override {
-    return "Mediator Pattern Example";
-  }
-  void execute() override { mediator::run(); }
-};
-
-REGISTER_EXAMPLE(MediatorExample);
+LAB_EXAMPLE("Mediator",
+            "components coordinate through a mediator instead of each other") {
+  run();
+}

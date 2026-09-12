@@ -1,74 +1,118 @@
+// -----------------------------------------------------------------------------
+// Output formatting with <iomanip> and std::format
+//
+// Two ways to change how a stream formats values:
+//   - flags        : stream.setf(std::ios::showpos), unsetf(...)
+//   - manipulators : stream << std::hex << std::setw(8) << std::setfill('0')
+//
+// Most settings are STICKY (they stay until changed); std::setw only applies
+// to the next output. Save/restore the state with copyfmt when a function
+// must not leave its settings behind.
+//
+// C++20 std::format("{:>8.2f}", x) formats without touching any stream state.
+//
+// This example formats into std::ostringstream objects, so the settings do
+// not leak into the rest of the program.
+//
+// Reference: https://en.cppreference.com/w/cpp/io/manip
+// -----------------------------------------------------------------------------
+
+#include <format>
 #include <iomanip>
-#include <iostream>
-#include "ExampleRegistry.h"
+#include <sstream>
+#include <string>
+
+#include "lab/Example.h"
+#include "lab/Logger.h"
 
 namespace {
-void run() {
-  std::ios old_state(nullptr);
-  old_state.copyfmt(std::cout);  // Save state
 
-  // std::ios::boolalpha / noboolanpha
-  std::cout << "[boolalpha]\n";
-  std::cout << true << ' ' << false << '\n';  // 0
-  std::cout.setf(std::ios::boolalpha);
-  std::cout << false << ' ' << true << '\n';  // true false
+void flags() {
+  LOG_SECTION("Flags: boolalpha, showpos, uppercase");
+  std::ostringstream out;
 
-  // std::ios::showpos / noshowpos
-  std::cout << "\n[showpos]\n";
-  std::cout << 5 << ' ' << -5 << '\n';  // 5 -5
-  std::cout.setf(std::ios::boolalpha);
-  std::cout << 5 << ' ' << -5 << '\n';  // +5 -5
+  out << true << ' ' << false;
+  LOG_S("default        : " << out.str());
 
-  // std::ios::upercase / no
-  std::cout << "\n[uppercase]\n";
-  std::cout << 12345678.9 << '\n';  // 1.23457e+07
-  std::cout.setf(std::ios::uppercase);
-  std::cout << 12345678.9 << '\n';  // 1.23457E+07
+  out.str("");
+  out.setf(std::ios::boolalpha);
+  out << true << ' ' << false;
+  LOG_S("boolalpha      : " << out.str());
 
-  // std::ios::basefield
-  // std::ios::dec
-  // std::ios::hex
-  // std::ios::oct
-  std::cout << "\n[base: dec / hex / oct]\n";
-  std::cout << 11 << '\n';  // 11
-  std::cout.setf(std::ios::hex, std::ios::basefield);
-  std::cout << 11 << '\n';  // B
+  out.str("");
+  out.setf(std::ios::showpos);
+  out << 5 << ' ' << -5;
+  LOG_S("showpos        : " << out.str());
+  out.unsetf(std::ios::showpos);
 
-  // std::fixed - use dec notation
-  std::cout << "\n[fixed vs scientific]\n";
-  std::cout << std::fixed << '\n';
-  std::cout << std::setprecision(5) << 123.456 << '\n';  // 123.45600
-
-  // std::scientific
-  std::cout << std::scientific << '\n';
-  std::cout << std::setprecision(5) << 123.456 << '\n';  // 1.23456e+002
-
-  // reset ========================================================
-  std::cout.copyfmt(old_state);  // Restore state
-
-  // std::setw() - set the filed width for input and output
-  // std::left/right/internal - left/right justifies - Left-justifies the sign of the number, and right-justifies the value
-  std::cout << "\n[width & alignment]\n";
-  std::cout << "|" << -12345 << "|\n";
-  std::cout << "|" << std::setw(10) << -12345 << "|\n";               // right
-  std::cout << "|" << std::setw(10) << std::left << -12345 << "|\n";  // left
-  std::cout << "|" << std::setw(10) << std::internal << -12345 << "|\n";  // internal
-
-  // std::fill(char) set the fill char
-  std::cout << "\n[fill]\n";
-  std::cout.fill('*');
-  std::cout << std::setw(10) << std::internal << -12345 << '\n';
-
-  std::cout.copyfmt(old_state);  // Restore state
+  out.str("");
+  out.setf(std::ios::uppercase);
+  out << 12345678.9 << ' ' << std::hex << 255;
+  LOG_S("uppercase      : " << out.str());
 }
+
+void numberBases() {
+  LOG_SECTION("Number bases");
+  std::ostringstream out;
+  out << std::showbase << "dec " << std::dec << 255 << ", hex " << std::hex
+      << 255 << ", oct " << std::oct << 255;
+  LOG(out.str());
+}
+
+void floatingPoint() {
+  LOG_SECTION("Floating point: precision, fixed, scientific");
+  const double value = 123.456789;
+  std::ostringstream out;
+
+  out << value << " | " << std::setprecision(4) << value;
+  LOG_S("default, setprecision(4) : " << out.str() << "  (significant digits)");
+
+  out.str("");
+  out << std::fixed << std::setprecision(2) << value;
+  LOG_S("fixed + setprecision(2)  : " << out.str()
+                                      << "  (digits after the point)");
+
+  out.str("");
+  out << std::scientific << std::setprecision(3) << value;
+  LOG_S("scientific               : " << out.str());
+}
+
+void widthAndAlignment() {
+  LOG_SECTION("Width, alignment and fill");
+  std::ostringstream out;
+  out << '|' << std::setw(10) << -12345 << "|  right (default)\n"
+      << '|' << std::setw(10) << std::left << -12345 << "|  left\n"
+      << '|' << std::setw(10) << std::internal << -12345 << "|  internal\n"
+      << '|' << std::setfill('*') << std::setw(10) << std::right << -12345
+      << "|  setfill('*')\n"
+      << '|' << -12345 << "|  setw applies to one output only";
+  LOG(out.str());
+
+  LOG_SECTION("Saving and restoring the stream state");
+  std::ostringstream stream;
+  std::ios saved(nullptr);
+  saved.copyfmt(stream);  // remember the current settings
+  stream << std::hex << std::uppercase << 3054;
+  stream.copyfmt(saved);  // back to the defaults
+  stream << ' ' << 3054;
+  LOG_S("hex then restored: " << stream.str());
+}
+
+void stdFormat() {
+  LOG_SECTION("C++20 std::format");
+  LOG(std::format("|{:>10}|{:<10}|{:^10}|", "right", "left", "center"));
+  LOG(std::format("pi = {:.3f}, hex = {:#x}, padded = {:08.2f}", 3.14159, 255,
+                  3.14159));
+  LOG(std::format("{0} + {0} = {1}", 21, 42));  // positional arguments
+}
+
 }  // namespace
 
-class OutputFormatting : public IExample {
- public:
-  std::string group() const override { return "core/filehandle"; }
-  std::string name() const override { return "OutputFormatting"; }
-  std::string description() const override { return ""; }
-  void execute() override { run(); }
-};
-
-REGISTER_EXAMPLE(OutputFormatting);
+LAB_EXAMPLE("OutputFormatting",
+            "iomanip flags and manipulators, sticky state, std::format") {
+  flags();
+  numberBases();
+  floatingPoint();
+  widthAndAlignment();
+  stdFormat();
+}

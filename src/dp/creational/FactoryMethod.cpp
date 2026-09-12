@@ -1,143 +1,133 @@
-// cppcheck-suppress-file [functionStatic]
-
-// Flow in this file:
-//   1. Define a product interface            -> IGdbProduct
-//   2. Implement concrete products           -> Linux / Windows / MacOs Gdb
-//   3. Define a creator interface            -> IGdbFactory (+ AbstractGdbFactory)
-//   4. Implement concrete creators           -> Linux / Windows / MacOs factories
-//   5. Client picks a factory, then uses it  -> never constructs products directly
+// -----------------------------------------------------------------------------
+// Factory Method (creational pattern)
+//
+// Declares a method for creating an object in a base class and lets subclasses
+// decide which concrete class to instantiate. Code that USES the product
+// (installAndCheck) lives in the base class and never names a concrete type.
+//
+// Use it when:
+//   - the exact types of objects your code works with are not known in advance
+//   - users of your library should be able to extend its internal components
+//   - you want to reuse existing objects instead of rebuilding them
+//
+// Flow:
+//   1. Product interface          Debugger
+//   2. Concrete products          LinuxGdb, WindowsGdb, MacOsLldb
+//   3. Creator                    DebuggerInstaller: createDebugger() is the
+//                                 factory method, installAndCheck() uses it
+//   4. Concrete creators          one per platform, override the factory method
+//   5. Client picks a creator     and never constructs products directly
+//
+// UML: docs/uml/dp/creational_factorymethod.drawio.svg
+// -----------------------------------------------------------------------------
 
 #include <memory>
 #include <string>
-#include "ExampleRegistry.h"
-#include "Logger.h"
+#include <string_view>
+
+#include "lab/Example.h"
+#include "lab/Logger.h"
 
 namespace {
-namespace factory_method {
 
-/// @class Product Interface
-class IGdbProduct {
+// 1. Product interface
+class Debugger {
  public:
-  virtual ~IGdbProduct() = default;
-  virtual void launch() const = 0;
+  virtual ~Debugger() = default;
+  virtual std::string installCommand() const = 0;
+  virtual std::string versionCommand() const = 0;
 };
 
-class LinuxGdbProduct : public IGdbProduct {
+// 2. Concrete products
+class LinuxGdb : public Debugger {
  public:
-  void launch() const override {
-    LOG("sudo apt update && sudo apt install -y gdb && gdb --version");
+  std::string installCommand() const override {
+    return "sudo apt install -y gdb";
+  }
+  std::string versionCommand() const override { return "gdb --version"; }
+};
+
+class WindowsGdb : public Debugger {
+ public:
+  std::string installCommand() const override {
+    return "pacman -S mingw-w64-x86_64-gdb";
+  }
+  std::string versionCommand() const override { return "gdb.exe --version"; }
+};
+
+class MacOsLldb : public Debugger {
+ public:
+  std::string installCommand() const override {
+    return "xcode-select --install";
+  }
+  std::string versionCommand() const override { return "lldb --version"; }
+};
+
+// 3. Creator
+class DebuggerInstaller {
+ public:
+  virtual ~DebuggerInstaller() = default;
+
+  /// Business logic shared by all platforms. It relies on the factory method
+  /// and works with ANY product.
+  void installAndCheck() const {
+    const std::unique_ptr<Debugger> debugger = createDebugger();
+    LOG_S("    install: " << debugger->installCommand());
+    LOG_S("    verify : " << debugger->versionCommand());
+  }
+
+ private:
+  /// The factory method.
+  virtual std::unique_ptr<Debugger> createDebugger() const = 0;
+};
+
+// 4. Concrete creators
+class LinuxInstaller : public DebuggerInstaller {
+  std::unique_ptr<Debugger> createDebugger() const override {
+    return std::make_unique<LinuxGdb>();
   }
 };
 
-class WindowsGdbProduct : public IGdbProduct {
- public:
-  void launch() const override {
-    LOG("pacman -Syu mingw-w64-x86_64-gdb && gdb --version");
+class WindowsInstaller : public DebuggerInstaller {
+  std::unique_ptr<Debugger> createDebugger() const override {
+    return std::make_unique<WindowsGdb>();
   }
 };
 
-class MacOsGdbProduct : public IGdbProduct {
- public:
-  void launch() const override { LOG("brew install gdb && gdb --version"); }
-};
-
-/// @class Creator Interface
-class IGdbFactory {
- public:
-  virtual ~IGdbFactory() = default;
-  virtual std::unique_ptr<IGdbProduct> factory_method() = 0;
-  virtual void launch_gdb() = 0;
-};
-
-class AbstractGdbFactory : public IGdbFactory {
- public:
-  /// @brief call the factory method to create a Product object
-  /// execute operation
-  void launch_gdb() final {
-    auto gdb = this->factory_method();
-    gdb->launch();
+class MacOsInstaller : public DebuggerInstaller {
+  std::unique_ptr<Debugger> createDebugger() const override {
+    return std::make_unique<MacOsLldb>();
   }
 };
 
-class WindowsGdbFactory : public AbstractGdbFactory {
- public:
-  std::unique_ptr<IGdbProduct> factory_method() override {
-    return std::make_unique<WindowsGdbProduct>();
-  }
-};
-
-class LinuxGdbFactory : public AbstractGdbFactory {
- public:
-  std::unique_ptr<IGdbProduct> factory_method() override {
-    return std::make_unique<LinuxGdbProduct>();
-  }
-};
-
-class MacOsGdbFactory : public AbstractGdbFactory {
- public:
-  std::unique_ptr<IGdbProduct> factory_method() override {
-    return std::make_unique<MacOsGdbProduct>();
-  }
-};
-
-/// @brief selector
-std::unique_ptr<IGdbFactory> create_gdb_factory(const std::string& os) {
+std::unique_ptr<DebuggerInstaller> installerFor(std::string_view os) {
   if (os == "linux") {
-    return std::make_unique<LinuxGdbFactory>();
+    return std::make_unique<LinuxInstaller>();
   }
   if (os == "windows") {
-    return std::make_unique<WindowsGdbFactory>();
+    return std::make_unique<WindowsInstaller>();
   }
   if (os == "macos") {
-    return std::make_unique<MacOsGdbFactory>();
+    return std::make_unique<MacOsInstaller>();
   }
-  LOG("OS not support yet - " + os);
   return nullptr;
 }
 
+// 5. Client
 void run() {
-  auto client_code = [](IGdbFactory* gdb) {
-    if (gdb != nullptr) {
-      gdb->launch_gdb();
+  for (const std::string_view os : {"linux", "windows", "macos", "unknown"}) {
+    LOG_SECTION(os);
+    if (const auto installer = installerFor(os)) {
+      installer->installAndCheck();
+    } else {
+      LOG_S("    no installer for '" << os << "'");
     }
-  };
-
-  // Create factory base on the os
-  {
-    const std::string os = "linux";
-    auto gdb = create_gdb_factory(os);
-
-    client_code(gdb.get());
-  }
-  {
-    const std::string os = "windows";
-    auto gdb = create_gdb_factory(os);
-
-    client_code(gdb.get());
-  }
-  {
-    const std::string os = "macos";
-    auto gdb = create_gdb_factory(os);
-
-    client_code(gdb.get());
-  }
-  {
-    const std::string os = "unknown";
-    auto gdb = create_gdb_factory(os);
-    client_code(gdb.get());
   }
 }
-}  // namespace factory_method
+
 }  // namespace
 
-class FactoryMethodExample : public IExample {
- public:
-  std::string group() const override { return "dp/creational"; }
-  std::string name() const override { return "FactoryMethod"; }
-  std::string description() const override {
-    return "FactoryMethod Pattern Example";
-  }
-  void execute() override { factory_method::run(); }
-};
-
-REGISTER_EXAMPLE(FactoryMethodExample);
+LAB_EXAMPLE("FactoryMethod",
+            "subclasses decide which product a creator makes") {
+  run();
+}

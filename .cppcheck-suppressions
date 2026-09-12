@@ -1,0 +1,53 @@
+# cppcheck suppressions for cpp-lab
+
+#   cppcheck --suppressions-list=.cppcheck-suppressions ... ./src ./include
+
+# Format: <id> or <id>:<file> or <id>:<file>:<line>
+
+# --- checks that are noise in teaching code ---------------------------------
+# Example classes keep their member functions non-static so the examples read
+# like ordinary code.
+functionStatic
+# Explicit loops are often the point of an example; the algorithm version is
+# shown where it is the lesson (see core/utils/Algorithm).
+useStlAlgorithm
+
+# --- intentional demonstrations ---------------------------------------------
+# "the condition is always true/false" is exactly what these examples show
+knownConditionTrueFalse:src/core/datatype/Fundamental.cpp
+knownConditionTrueFalse:src/core/datatype/Reference.cpp
+knownConditionTrueFalse:src/core/datatype/TypeConversions.cpp
+knownConditionTrueFalse:src/core/string/StdString.cpp
+knownConditionTrueFalse:src/core/utils/Optional.cpp
+knownConditionTrueFalse:src/dp/structural/Adapter.cpp
+# pointer/reference rebinding and re-assignment shown on purpose
+redundantInitialization:src/core/datatype/Pointer.cpp
+redundantAssignment:src/core/function/operator_overloading/AssignmentOperator.cpp
+unreadVariable:src/core/datatype/TypeConversions.cpp
+constVariableReference:src/core/datatype/Array.cpp
+# at(3) must throw here, that is the lesson
+containerOutOfBounds:src/core/container/sequence/Array.cpp
+# std::deque guarantees that references survive push_front/push_back
+invalidContainerReference:src/core/container/sequence/Deque.cpp
+# placement new constructs into deliberately raw storage
+legacyUninitvar:src/core/function/operator_overloading/AllocationOperator.cpp
+# the null check after a move is the point of the example
+nullPointerRedundantCheck:src/core/smart_pointer/Unique.cpp
+accessMoved:src/core/class/Constructor.cpp
+accessMoved:src/core/class/RuleOfThreeFiveZero.cpp
+accessMoved:src/core/datatype/Reference.cpp
+# classes that show what the compiler generates for them
+noCopyConstructor:src/core/class/RuleOfThreeFiveZero.cpp
+noOperatorEq:src/core/class/RuleOfThreeFiveZero.cpp
+noCopyConstructor:src/core/class/ShallowDeepCopying.cpp
+noOperatorEq:src/core/class/ShallowDeepCopying.cpp
+noExplicitConstructor:src/core/class/Constructor.cpp
+duplInheritedMember:src/core/class/Binding.cpp
+virtualCallInConstructor:src/core/class/Binding.cpp
+postfixOperator:src/core/function/operator_overloading/InDecOperator.cpp
+# writing raw doubles is what binary file I/O looks like
+invalidPointerCast:src/core/filehandle/BinaryFileHandling.cpp
+# the plugin entry point must have main's signature
+constParameter:src/demo/dlopen/sample_app.cpp
+# startup code compares the linker-provided section symbols
+comparePointers:src/embedded/startup.c

@@ -1,114 +1,138 @@
-// cppcheck-suppress-file [unreadVariable, unusedVariable, uninitdata, uninitvar, unassignedVariable]
+// -----------------------------------------------------------------------------
+// Initialization
+//
+// C++ has several ways to give an object its first value:
+//   T x;           default initialization (built-in types: indeterminate value!)
+//   T x{};         value initialization   (built-in types: zero)
+//   T x(args);     direct initialization
+//   T x = expr;    copy initialization    (explicit constructors not allowed)
+//   T x{args};     list initialization    (C++11, rejects narrowing)
+//   T x{.a = 1};   designated initializer (C++20, aggregates only)
+//
+// Rule of thumb: prefer braces `T x{...}` - they always initialize and they
+// refuse narrowing conversions such as double -> int.
+//
+// Reference: https://en.cppreference.com/w/cpp/language/initialization
+// -----------------------------------------------------------------------------
 
-#include "ExampleRegistry.h"
-#include "Logger.h"
+#include <string>
+#include <vector>
 
-/// @brief Dummy class
-struct Dummy {
-  Dummy() { LOG("Default ctor"); }
-  explicit Dummy(int value) { LOG_S("Int ctor: " << value); }
-  Dummy(const Dummy&) { LOG("Copy ctor"); }
+#include "lab/Example.h"
+#include "lab/Logger.h"
+
+namespace {
+
+/// Logs which constructor runs for each form of initialization.
+struct Tracer {
+  Tracer() { LOG("  Tracer()              default constructor"); }
+  explicit Tracer(int value) {
+    LOG_S("  Tracer(int)           value = " << value);
+  }
+  Tracer(const Tracer& /*other*/) {
+    LOG("  Tracer(const Tracer&) copy constructor");
+  }
 };
 
-/// @brief Aggregate type
-struct Aggregate {
+/// An aggregate: no user-declared constructors and only public members.
+struct Point {
   int x;
   int y;
 };
 
-/// @brief Default Initialization
-void default_ini() {
-  int a;
-  LOG_S("a = " << a);
+void defaultInitialization() {
+  LOG_SECTION("Default initialization: T x;");
 
-  Dummy object;
+  [[maybe_unused]] int
+      number;  // indeterminate: reading it is undefined behavior
+  LOG("int number;   -> indeterminate value, assign before reading it");
 
-  auto* p1 = new int;
-  LOG_S("*p1 = " << *p1);
-  auto* p2 = new Dummy;
+  auto* heap_number = new int;  // also indeterminate
+  *heap_number = 42;
+  LOG_S("new int       -> indeterminate until assigned, now " << *heap_number);
+  delete heap_number;
 
-  delete p1;
-  delete p2;
+  LOG("Tracer tracer; -> class types run their default constructor:");
+  const Tracer tracer;
 }
 
-/// @brief Value Initialization
-void value_ini() {
-  // int x();Dummy obj();      // Most Vexing Parse:function declaration
+void valueInitialization() {
+  LOG_SECTION("Value initialization: T x{}; / T()");
 
-  int a = int();
-  int b{};
+  const int braces{};
+  const int parentheses = int();
+  LOG_S("int braces{} = " << braces << ", int() = " << parentheses);
 
-  LOG_S("a = " << a);
-  LOG_S("b = " << b);
+  auto* heap_number = new int();  // new int() and new int{} are zero
+  LOG_S("new int()     = " << *heap_number);
+  delete heap_number;
 
-  Dummy object1 = Dummy();  // value initialization x copy-initialization
-  Dummy object2{};
+  LOG("Tracer tracer{};");
+  const Tracer tracer{};
 
-  auto* p1 = new int();
-  LOG_S("*p1 = " << *p1);
-
-  auto* p2 = new Dummy();
-
-  delete p1;
-  delete p2;
+  // Tracer oops();  // Most vexing parse: this declares a FUNCTION named oops!
 }
 
-/// @brief Direct Initialization
-void direct_ini() {
-  int a(42);
+void directAndCopyInitialization() {
+  LOG_SECTION("Direct T x(args) and copy T x = other");
 
-  Dummy object1(1);
-  Dummy object2(static_cast<int>(2));
+  LOG("Tracer direct(1);");
+  const Tracer direct(1);
 
-  LOG_S("a = " << a);
+  LOG("Tracer copy = direct;");
+  [[maybe_unused]] const Tracer copy = direct;
+  // Tracer implicit = 2;  // error: copy initialization ignores explicit constructors
+
+  const std::string text = "copy-initialized from a string literal";
+  LOG(text);
 }
 
-/// @brief Copy Initialization
-void copy_ini() {
-  Dummy source{1};
+void listInitialization() {
+  LOG_SECTION("List initialization: T x{args}");
 
-  Dummy object1 = source;
-  Dummy object2 = Dummy{2};
+  LOG("Tracer direct_list{3};");
+  [[maybe_unused]] const Tracer direct_list{3};
 
-  int value = 42;
+  LOG("Tracer copy_list = Tracer{4};   (C++17 guarantees no copy is made)");
+  [[maybe_unused]] const Tracer copy_list = Tracer{4};
 
-  LOG_S("value = " << value);
+  const std::vector<int> listed{
+      3, 7};  // uses the std::initializer_list constructor
+  const std::vector<int> sized(3, 7);  // uses the (count, value) constructor
+  LOG_S("std::vector<int>{3, 7}.size() = " << listed.size()
+                                           << "  -> elements 3 and 7");
+  LOG_S("std::vector<int>(3, 7).size() = "
+        << sized.size() << "  -> three 7s. () and {} differ!");
+
+  const double pi = 3.14159;
+  // const int narrowed{pi};  // error: braces reject narrowing conversions
+  const int truncated(pi);  // compiles and silently drops the fraction
+  LOG_S("int truncated(3.14159) = "
+        << truncated << "  (int narrowed{3.14159} does not compile)");
 }
 
-/// @brief List Initialization (since C++11)
-void list_ini() {
-  Dummy object1{1};                         // direct-list-init
-  Dummy object2 = {static_cast<Dummy>(2)};  // copy-list-init
+void aggregateInitialization() {
+  LOG_SECTION("Aggregate initialization");
 
-  int values1[]{1, 2, 3};
-  int values2[] = {4, 5, 6};
+  const Point p1 = {1, 2};
+  const Point p2{3, 4};
+  const Point p3{.x = 5, .y = 6};  // C++20: members named, in declaration order
+  const Point p4{};                // every member value-initialized (zero)
+  // Point p5{7};  // also valid: y is value-initialized to 0 (GCC warns with -Wextra)
+
+  LOG_S("Point p1 = {1, 2}        -> {" << p1.x << ", " << p1.y << "}");
+  LOG_S("Point p2{3, 4}           -> {" << p2.x << ", " << p2.y << "}");
+  LOG_S("Point p3{.x = 5, .y = 6} -> {" << p3.x << ", " << p3.y << "}");
+  LOG_S("Point p4{}               -> {" << p4.x << ", " << p4.y << "}");
 }
 
-/// @brief Aggregate Initialization
-void aggregate_ini() {
-  Aggregate a1 = {1, 2};
-  Aggregate a2{3, 4};
-  Aggregate a3{.x = 3, .y = 4};
+}  // namespace
 
-  LOG_S("a1 = {" << a1.x << ", " << a1.y << "}");
-  LOG_S("a2 = {" << a2.x << ", " << a2.y << "}");
-  LOG_S("a3 = {" << a3.x << ", " << a3.y << "}");
+LAB_EXAMPLE("Initialization",
+            "default, value, direct, copy, list and aggregate initialization") {
+  defaultInitialization();
+  valueInitialization();
+  directAndCopyInitialization();
+  listInitialization();
+  aggregateInitialization();
 }
-
-class Initialization : public IExample {
- public:
-  std::string group() const override { return "core/basics"; }
-  std::string name() const override { return "Initialization"; }
-  std::string description() const override { return "Initialization Examples"; }
-
-  void execute() override {
-    default_ini();
-    value_ini();
-    direct_ini();
-    copy_ini();
-    list_ini();
-    aggregate_ini();
-  }
-};
-
-REGISTER_EXAMPLE(Initialization);

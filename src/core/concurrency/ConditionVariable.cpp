@@ -1,75 +1,157 @@
-#include <string>
+// -----------------------------------------------------------------------------
+// std::condition_variable
+//
+// Lets a thread sleep until another thread signals that some condition has
+// become true, without busy-waiting.
+//
+//   std::unique_lock lock(mutex);
+//   cv.wait(lock, [] { return ready; });   // sleep until ready == true
+//
+// Rules:
+//   - Always wait with a predicate: wake-ups can be spurious, and a notify
+//     sent before the wait started would otherwise be lost.
+//   - Change the shared state while holding the mutex, then notify.
+//   - wait() needs std::unique_lock because it unlocks/relocks the mutex.
+//
+// Reference: https://en.cppreference.com/w/cpp/thread/condition_variable
+// -----------------------------------------------------------------------------
 
 #include <condition_variable>
+#include <deque>
+#include <functional>
 #include <mutex>
+#include <optional>
+#include <string>
 #include <thread>
+#include <vector>
 
-#include "ExampleRegistry.h"
-#include "Logger.h"
+#include "lab/Example.h"
+#include "lab/Logger.h"
 
 namespace {
-std::mutex mutex;
-std::condition_variable cv;
 
-std::string data;
-bool ready = false;
-bool finish = false;
+namespace handshake {
 
-void worker_thread() {
-  std::unique_lock lock(mutex);
+/// Everything both threads share, protected by `mutex`.
+struct Channel {
+  std::mutex mutex;
+  std::condition_variable cv;
+  std::string data;
+  bool ready{false};
+  bool processed{false};
+};
 
-  LOG("Waiting for data");
+void worker(Channel& channel) {
+  std::unique_lock<std::mutex> lock(channel.mutex);
+  LOG("worker: waiting for data");
 
-  // wait() temporarily unlocks the mutex and puts the thread to sleep, allowing other threads to modify 'ready'.
-  // When notified, it wakes up, re-locks the mutex, and re-checks the condition.
-  // The thread continues only when 'ready' becomes true.
-  cv.wait(lock, []() { return ready; });
+  // wait() atomically unlocks the mutex and sleeps. When woken up it locks the
+  // mutex again and re-checks the predicate before returning.
+  channel.cv.wait(lock, [&channel] { return channel.ready; });
 
-  LOG("Processing data");
+  LOG("worker: processing data");
+  channel.data += " -> processed";
+  channel.processed = true;
 
-  data += " after processing";
-  finish = true;
-
-  LOG("cv.notify_one");
-  cv.notify_one();
+  lock.unlock();  // unlock first so the woken thread can take the mutex at once
+  channel.cv.notify_one();
 }
 
 void run() {
-  LOG("Condition Example Begin");
-  std::thread w_thread(worker_thread);
-
-  // send data
-  LOG("Signals data ready for processing");
-  {
-    std::lock_guard<std::mutex> lock(mutex);
-    data = "THIS IS A PRIVATE KEY: ABCxyz123";
-    ready = true;
-  }
-
-  LOG("cv.notify_one");
-  cv.notify_one();  // wake up one thread waiting on this cv
+  LOG_SECTION("Handshake between two threads");
+  Channel channel;
+  std::thread worker_thread(worker, std::ref(channel));
 
   {
-    std::unique_lock g_mutex(mutex);
-    LOG("Waiting for finishing");
-    cv.wait(g_mutex, []() { return finish; });
+    const std::lock_guard<std::mutex> lock(channel.mutex);
+    channel.data = "request";
+    channel.ready = true;
   }
-  LOG("data: " + data);
-  w_thread.join();
+  LOG("main: data is ready, notify_one()");
+  channel.cv.notify_one();
 
-  LOG("Condition Example End");
+  {
+    std::unique_lock<std::mutex> lock(channel.mutex);
+    channel.cv.wait(lock, [&channel] { return channel.processed; });
+    LOG_S("main: received '" << channel.data << "'");
+  }
+  worker_thread.join();
 }
-}  // namespace
 
-class ConditionVariable : public IExample {
+}  // namespace handshake
+
+namespace producer_consumer {
+
+/// A minimal thread-safe queue: pop() blocks until an item arrives or the
+/// queue is closed.
+class BlockingQueue {
  public:
-  std::string group() const override { return "core/concurrency"; }
-  std::string name() const override { return "ConditionVariable"; }
-  std::string description() const override {
-    return "The examples for <thread> condition variable";
+  void push(int value) {
+    {
+      const std::lock_guard<std::mutex> lock(mutex_);
+      items_.push_back(value);
+    }
+    cv_.notify_one();  // wake one waiting consumer
   }
 
-  void execute() override { run(); }
+  void close() {
+    {
+      const std::lock_guard<std::mutex> lock(mutex_);
+      closed_ = true;
+    }
+    cv_.notify_all();  // wake every consumer so they can finish
+  }
+
+  /// Returns std::nullopt once the queue is closed and empty.
+  std::optional<int> pop() {
+    std::unique_lock<std::mutex> lock(mutex_);
+    cv_.wait(lock, [this] { return closed_ || !items_.empty(); });
+    if (items_.empty()) {
+      return std::nullopt;
+    }
+    const int value = items_.front();
+    items_.pop_front();
+    return value;
+  }
+
+ private:
+  std::mutex mutex_;
+  std::condition_variable cv_;
+  std::deque<int> items_;
+  bool closed_{false};
 };
 
-REGISTER_EXAMPLE(ConditionVariable);
+void run() {
+  LOG_SECTION("Producer / consumer with a blocking queue");
+  BlockingQueue queue;
+
+  auto consume = [&queue](int id) {
+    while (const std::optional<int> item = queue.pop()) {
+      LOG_S("consumer " << id << " got item " << *item);
+    }
+    LOG_S("consumer " << id << " sees a closed queue and stops");
+  };
+
+  std::vector<std::thread> consumers;
+  consumers.emplace_back(consume, 1);
+  consumers.emplace_back(consume, 2);
+
+  for (int item = 1; item <= 6; ++item) {
+    queue.push(item);
+  }
+  queue.close();
+
+  for (std::thread& consumer : consumers) {
+    consumer.join();
+  }
+}
+
+}  // namespace producer_consumer
+
+}  // namespace
+
+LAB_EXAMPLE("ConditionVariable",
+            "wait/notify handshake and a blocking producer/consumer queue") {
+  handshake::run();
+  producer_consumer::run();
+}

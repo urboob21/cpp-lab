@@ -1,3 +1,14 @@
+# Utilities
+
+| Example | Topic |
+|---|---|
+| `Optional` | `std::optional` instead of magic values, null pointers or exceptions |
+| `Algorithm` | `<algorithm>`, `<numeric>` and C++20 ranges/views |
+| `Regex` | `<regex>`: match, search, capture groups, replace |
+| `TypeTraits` | `<type_traits>`, the detection idiom, `enable_if`, C++20 concepts |
+| `Variadic` | C-style `va_list` vs variadic templates and fold expressions |
+
+---
 ## Utilities library
 
 ### 1. `<optional>`

@@ -1,84 +1,109 @@
-// cppcheck-suppress-file [functionStatic,duplInheritedMember]
+// -----------------------------------------------------------------------------
+// Early binding vs late binding
+//
+//   Early (static) binding : the function is chosen at compile time from the
+//                            static type (non-virtual members, overloads).
+//   Late (dynamic) binding : a virtual function is chosen at run time from the
+//                            dynamic type of the object, through a vtable.
+//
+// Pitfalls:
+//   - A non-virtual function with the same name in a derived class HIDES the
+//     base version; calls through a base reference still reach the base.
+//   - Virtual calls inside a constructor do not reach the derived class: that
+//     part of the object has not been constructed yet.
+//
+// Reference: https://www.learncpp.com/cpp-tutorial/early-binding-and-late-binding/
+// -----------------------------------------------------------------------------
 
-#include <iostream>
-#include "ExampleRegistry.h"
+#include <memory>
+
+#include "lab/Example.h"
+#include "lab/Logger.h"
 
 namespace {
+
 namespace early_binding {
 
 class Animal {
  public:
-  virtual ~Animal() = default;
-  void speak() {  // NOT virtual
-    std::cout << "Animal speaks\n";
-    dump_++;
-  }
-
- protected:
-  int dump_{0};
+  void speak() const { LOG("Animal::speak"); }  // NOT virtual
 };
 
 class Dog : public Animal {
  public:
-  void speak() {  // Hides Animal::speak()
-    std::cout << "Dog barks\n";
-    dump_++;
-  }
+  void speak() const { LOG("Dog::speak"); }  // hides Animal::speak
 };
 
-void print(int x) {
-  std::cout << "int: " << x << "\n";
+void print(int value) {
+  LOG_S("print(int)    called with " << value);
 }
 
-void print(double x) {
-  std::cout << "double: " << x << "\n";
+void print(double value) {
+  LOG_S("print(double) called with " << value);
 }
 
 void run() {
-  std::cout << "\n---EarlyBinding---\n";
-  Animal* a = new Dog();
-  a->speak();  // Early binding: Non-virtual member function
+  LOG_SECTION("Early binding: decided by the static type");
 
-  print(5);     // Early binding: int version chosen at compile time
-  print(0.5F);  // Early binding: float version chosen at compile time
-  delete a;
+  const Dog dog;
+  const Animal& as_animal = dog;
+  LOG("dog.speak():");
+  dog.speak();  // static type Dog
+  LOG("as_animal.speak() where as_animal refers to the same Dog:");
+  as_animal.speak();  // static type Animal -> Animal::speak
+
+  LOG("Overload resolution also happens at compile time:");
+  print(5);     // exact match: int
+  print(0.5F);  // float -> double (promotion) is preferred over float -> int
 }
+
 }  // namespace early_binding
 
 namespace late_binding {
+
 class Animal {
  public:
-  virtual ~Animal() = default;
-  virtual void speak() {  // Virtual!
-    std::cout << "Animal speaks\n";
+  Animal() {
+    LOG("Animal() calls describe():");
+    describe();  // intentional: shows that dynamic binding is not used yet
   }
+  virtual ~Animal() = default;
+  Animal(const Animal&) = delete;
+  Animal& operator=(const Animal&) = delete;
+
+  virtual void speak() const { LOG("Animal::speak"); }
+  virtual void describe() const { LOG("  Animal::describe"); }
 };
 
-class Dog : public Animal {
+class Dog final : public Animal {  // final: no class may derive from Dog
  public:
-  void speak() override { std::cout << "Dog barks\n"; }
+  void speak() const override { LOG("Dog::speak"); }
+  void describe() const override { LOG("  Dog::describe"); }
 };
 
 void run() {
-  std::cout << "\n---LateBinding---\n";
-  Animal* a = new Dog();
-  a->speak();  // Late binding
-  delete a;
+  LOG_SECTION("Late binding: decided by the dynamic type (virtual)");
+
+  const std::unique_ptr<Animal> animal = std::make_unique<Dog>();
+  LOG("  -> Animal::describe ran, because the Dog part did not exist yet");
+
+  LOG("animal->speak() through a pointer to Animal:");
+  animal->speak();
+  LOG("animal->describe() after construction:");
+  animal->describe();
+
+  LOG_S("sizeof(early_binding::Animal) = " << sizeof(early_binding::Animal)
+                                           << " (no virtual functions)");
+  LOG_S("sizeof(late_binding::Animal)  = " << sizeof(Animal)
+                                           << " (hidden vtable pointer)");
 }
+
 }  // namespace late_binding
+
 }  // namespace
 
-class Binding : public IExample {
- public:
-  std::string group() const override { return "core/class"; };
-
-  std::string name() const override { return "Binding"; };
-  std::string description() const override { return "Binding examples"; };
-
-  void execute() override {
-    early_binding::run();
-    late_binding::run();
-  };
-};
-
-REGISTER_EXAMPLE(Binding);
+LAB_EXAMPLE("Binding",
+            "early (static) vs late (virtual) binding, hiding vs overriding") {
+  early_binding::run();
+  late_binding::run();
+}

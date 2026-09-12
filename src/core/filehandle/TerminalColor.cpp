@@ -1,123 +1,93 @@
-#include <ostream>
-#include <sstream>
-#include <string>
-#include "Logger.h"
+// -----------------------------------------------------------------------------
+// Colors in the terminal (ANSI escape codes)
+//
+//   "\033[<code>m" changes the style of the text that follows,
+//   "\033[0m" resets everything.
+//
+//   30-37 foreground   40-47 background   90-97 bright foreground
+//   1 bold   2 dim   3 italic   4 underline   7 reverse
+//   Codes combine with ';', e.g. "\033[1;31m" is bold red.
+//
+// Only terminals understand these codes. When output goes to a file or a pipe
+// (check with isatty) or NO_COLOR is set, print plain text - lab::Logger does.
+//
+// Reference: https://en.wikipedia.org/wiki/ANSI_escape_code
+// -----------------------------------------------------------------------------
 
-#include "ExampleRegistry.h"
+#include <array>
+#include <iostream>
+#include <string>
+#include <string_view>
+
+#include "lab/Example.h"
+#include "lab/Logger.h"
 
 namespace {
 
-namespace terminal_color_code {
+namespace ansi {
+inline constexpr std::string_view kReset = "\033[0m";
+}  // namespace ansi
 
-inline constexpr const char* kReset = "\033[0m";
-inline constexpr const char* kBlack = "\033[30m";
-inline constexpr const char* kRed = "\033[31m";
-inline constexpr const char* kGreen = "\033[32m";
-inline constexpr const char* kYellow = "\033[33m";
-inline constexpr const char* kBlue = "\033[34m";
-inline constexpr const char* kMagenta = "\033[35m";
-inline constexpr const char* kCyan = "\033[36m";
-inline constexpr const char* kWhite = "\033[37m";
-
-// Bold variants
-inline constexpr const char* kBoldBlack = "\033[1m\033[30m";
-inline constexpr const char* kBoldRed = "\033[1m\033[31m";
-inline constexpr const char* kBoldGreen = "\033[1m\033[32m";
-inline constexpr const char* kBoldYellow = "\033[1m\033[33m";
-inline constexpr const char* kBoldBlue = "\033[1m\033[34m";
-inline constexpr const char* kBoldMagenta = "\033[1m\033[35m";
-inline constexpr const char* kBoldCyan = "\033[1m\033[36m";
-inline constexpr const char* kBoldWhite = "\033[1m\033[37m";
-}  // namespace terminal_color_code
-
-void run() {
-  LOG("Terminal Color Example");
-
-  std::ostringstream oss;
-
-  oss.str("");
-  oss << terminal_color_code::kRed << "RED" << terminal_color_code::kReset;
-  LOG(oss.str());
-
-  oss.str("");
-  oss << terminal_color_code::kBlack << "BLACK" << terminal_color_code::kReset;
-  LOG(oss.str());
-
-  oss.str("");
-  oss << terminal_color_code::kGreen << "GREEN" << terminal_color_code::kReset;
-  LOG(oss.str());
-
-  oss.str("");
-  oss << terminal_color_code::kYellow << "YELLOW"
-      << terminal_color_code::kReset;
-  LOG(oss.str());
-
-  oss.str("");
-  oss << terminal_color_code::kBlue << "BLUE" << terminal_color_code::kReset;
-  LOG(oss.str());
-
-  oss.str("");
-  oss << terminal_color_code::kMagenta << "MAGENTA"
-      << terminal_color_code::kReset;
-  LOG(oss.str());
-
-  oss.str("");
-  oss << terminal_color_code::kCyan << "CYAN" << terminal_color_code::kReset;
-  LOG(oss.str());
-
-  oss.str("");
-  oss << terminal_color_code::kWhite << "WHITE" << terminal_color_code::kReset;
-  LOG(oss.str());
-
-  // Bold variants
-  oss.str("");
-  oss << terminal_color_code::kBoldRed << "BOLD RED"
-      << terminal_color_code::kReset;
-  LOG(oss.str());
-
-  oss.str("");
-  oss << terminal_color_code::kBoldGreen << "BOLD GREEN"
-      << terminal_color_code::kReset;
-  LOG(oss.str());
-
-  oss.str("");
-  oss << terminal_color_code::kBoldBlue << "BOLD BLUE"
-      << terminal_color_code::kReset;
-  LOG(oss.str());
-
-  oss.str("");
-  oss << terminal_color_code::kBoldCyan << "BOLD CYAN"
-      << terminal_color_code::kReset;
-  LOG(oss.str());
-
-  oss.str("");
-  oss << terminal_color_code::kBoldMagenta << "BOLD MAGENTA"
-      << terminal_color_code::kReset;
-  LOG(oss.str());
-
-  oss.str("");
-  oss << terminal_color_code::kBoldWhite << "BOLD WHITE"
-      << terminal_color_code::kReset;
-  LOG(oss.str());
-
-  oss.str("");
-  oss << terminal_color_code::kBoldYellow << "BOLD YELLOW"
-      << terminal_color_code::kReset;
-  LOG(oss.str());
-
-  oss.str("");
-  oss << terminal_color_code::kBoldBlack << "BOLD BLACK"
-      << terminal_color_code::kReset;
-  LOG(oss.str());
-}
-}  // namespace
-
-class TerminalColor : public IExample {
- public:
-  std::string group() const override { return "core/filehandle"; }
-  std::string name() const override { return "TerminalColor"; }
-  std::string description() const override { return ""; }
-  void execute() override { run(); }
+struct Style {
+  std::string_view name;
+  std::string_view code;
 };
 
-REGISTER_EXAMPLE(TerminalColor);
+constexpr std::array<Style, 8> kColors{{
+    {"black", "30"},
+    {"red", "31"},
+    {"green", "32"},
+    {"yellow", "33"},
+    {"blue", "34"},
+    {"magenta", "35"},
+    {"cyan", "36"},
+    {"white", "37"},
+}};
+
+constexpr std::array<Style, 5> kEffects{{
+    {"bold", "1"},
+    {"dim", "2"},
+    {"italic", "3"},
+    {"underline", "4"},
+    {"reverse", "7"},
+}};
+
+std::string styled(std::string_view text, std::string_view code) {
+  return "\033[" + std::string(code) + "m" + std::string(text) +
+         std::string(ansi::kReset);
+}
+
+void run() {
+  // Plain std::cout keeps the color table free of log prefixes.
+  LOG_SECTION("Foreground colors: normal, bold and bright");
+  for (const Style& color : kColors) {
+    const std::string bold = "1;" + std::string(color.code);
+    const std::string bright =
+        std::to_string(std::stoi(std::string(color.code)) + 60);
+    std::cout << "  " << styled(color.name, color.code) << "  "
+              << styled(color.name, bold) << "  " << styled(color.name, bright)
+              << '\n';
+  }
+
+  LOG_SECTION("Background colors");
+  for (const Style& color : kColors) {
+    const std::string background =
+        std::to_string(std::stoi(std::string(color.code)) + 10);
+    std::cout << "  "
+              << styled("  " + std::string(color.name) + "  ", background)
+              << '\n';
+  }
+
+  LOG_SECTION("Text effects (support varies by terminal)");
+  for (const Style& effect : kEffects) {
+    std::cout << "  " << styled(effect.name, effect.code) << '\n';
+  }
+  std::cout.flush();
+}
+
+}  // namespace
+
+LAB_EXAMPLE("TerminalColor",
+            "ANSI escape codes: colors, backgrounds and text effects") {
+  run();
+}

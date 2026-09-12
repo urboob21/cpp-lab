@@ -1,3 +1,7 @@
+> Examples: `dp/behavioral/{ChainOfResponsibility, Command, Iterator, Mediator, Memento, Observer,
+> State, Strategy, TemplateMethod, Visitor}` - run one with
+> `./build/bin/cpp_lab_project --run dp/behavioral/Observer`
+
 # Behavioral Design Patterns
 
 Behavioral design patterns are concerned with algorithms and the assignment of responsibilities between objects.

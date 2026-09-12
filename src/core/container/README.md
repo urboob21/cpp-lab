@@ -1,3 +1,30 @@
+# Containers
+
+| Example | Container |
+|---|---|
+| `sequence/Array` | `std::array` - fixed size, on the stack |
+| `sequence/Vector` | `std::vector` - dynamic array, growth and invalidation |
+| `sequence/Deque` | `std::deque` - fast at both ends, stable references |
+| `associative/Set` | `std::set` - sorted unique keys, ranges, `std::multiset` |
+| `unordered/UnorderedMap` | `std::unordered_map` - hash table, lookup pitfalls |
+| `adapter/Stack` | `std::stack` - LIFO |
+| `adapter/Queue` | `std::queue` - FIFO |
+| `adapter/PriorityQueue` | `std::priority_queue` - heap, custom priority |
+
+Choosing a container:
+
+```
+Need key -> value?          no  -> order matters and you insert/erase in the middle? -> std::list
+                                   only at the ends?                                 -> std::deque
+                                   otherwise                                         -> std::vector
+                            yes -> need sorted iteration? -> std::map / std::set
+                                   only fast lookup?      -> std::unordered_map / _set
+```
+
+`std::vector` is the default: contiguous memory keeps the CPU cache happy, which usually beats the
+theoretical advantages of other containers.
+
+---
 # Containers library
 - The Containers library is a generic collection of class templates and algorithms that allow programmers to easilly implement common data structures.
 - All container functions can be called concurrently by different threads on different containers

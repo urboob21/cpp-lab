@@ -1,149 +1,110 @@
-// Composition - lazy
-// Aggregation - x
+// -----------------------------------------------------------------------------
+// Proxy (structural pattern)
+//
+// Provides a substitute for another object. The proxy implements the same
+// interface and controls access to the real object, doing something before or
+// after forwarding the request.
+//
+// Common kinds of proxies:
+//   - virtual proxy    : creates an expensive object only when first needed
+//   - protection proxy : checks permissions before forwarding
+//   - logging proxy    : records requests
+//   - remote proxy     : hides that the object lives in another process
+//   (std::shared_ptr is a "smart reference" proxy for the pointee.)
+//
+// Problem: a heavy Server is constructed even if nobody ever calls it, and
+// access checks and logging would have to be added inside the Server itself.
+// Solution: ServerProxy adds lazy creation, access control and logging without
+// changing Server.
+//
+// Participants:
+//   Subject      Service interface
+//   RealSubject  Server
+//   Proxy        ServerProxy (same interface, owns the Server lazily)
+//
+// UML: docs/uml/dp/structural_proxy.drawio.svg
+// -----------------------------------------------------------------------------
 
 #include <memory>
+#include <string>
 #include <utility>
 
-#include "ExampleRegistry.h"
-#include "Logger.h"
+#include "lab/Example.h"
+#include "lab/Logger.h"
 
 namespace {
-/// @class Server Interface
-class IServer {
- public:
-  virtual ~IServer() = default;
 
-  /// @brief api
-  virtual void request() = 0;
+/// Subject.
+class Service {
+ public:
+  virtual ~Service() = default;
+  virtual void request(const std::string& user) = 0;
 };
 
-/// @brief User code
-void clientCode(IServer* s) {
-  if (s != nullptr) {
-    s->request();
+/// Real subject: expensive to create.
+class Server : public Service {
+ public:
+  Server() {
+    LOG("    Server: expensive construction (connect, load data...)");
   }
+  void request(const std::string& user) override {
+    LOG_S("    Server: handling request of " << user);
+  }
+};
+
+void clientCode(Service& service, const std::string& user) {
+  LOG_S("  client: request as " << user);
+  service.request(user);
 }
 
 namespace problem {
-const std::string kAdmin = "admin";
-class Server : public IServer {
- private:
-  std::string id_;
-
- public:
-  explicit Server(std::string id) : id_{std::move(id)} {
-    // [P1] Heavy or complex construction, so ideally should be lazy-loaded
-    LOG_S("CTR: " << id_);
-  }
-
-  // [P2] Need access control
-  // [P3] Need to log requests without modifying the Server itself
-  void request() override {
-    if (id_ != kAdmin) {
-      LOG_S("Invalid ID: " << id_);
-      return;
-    }
-    LOG_S("Handling request for: " << id_);
-  }
-};
 
 void run() {
-  {
-    std::string connection_id = "admin";
-    // [P4] The Server is constructed immediately even if we do not call any
-    // requests
-    auto server = std::make_unique<Server>(connection_id);
-    LOG("User request");
-    clientCode(server.get());
-  }
-
-  {
-    // [P4] Server is constructed even for invalid ID, wasting resources
-    std::string invalid_id = "xxx";
-    auto server = std::make_unique<Server>(invalid_id);
-    LOG("User request");
-    clientCode(server.get());
-  }
+  LOG_SECTION("Problem: the real object is created up front");
+  Server server;  // paid for even if nobody uses it
+  clientCode(server, "admin");
+  clientCode(server, "guest");  // no access control, no logging
 }
+
 }  // namespace problem
 
-namespace proxy_pattern {
-const std::string kAdmin = "admin";
-class Server : public IServer {
- private:
-  std::string id_;
-
+/// Proxy: lazy creation + access control + logging.
+class ServerProxy : public Service {
  public:
-  explicit Server(std::string id) : id_{std::move(id)} {
-    LOG_S("CTR: " << id_);
+  void request(const std::string& user) override {
+    if (!hasAccess(user)) {
+      LOG_S("    Proxy: access denied for " << user);
+      return;
+    }
+    if (!server_) {
+      LOG("    Proxy: first authorized request, creating the Server now");
+      server_ = std::make_unique<Server>();
+    }
+    server_->request(user);
+    ++requests_;
+    LOG_S("    Proxy: logged request #" << requests_);
   }
 
-  void request() override { LOG_S("Handling request for: " << id_); }
-};
-
-class ServerProxy : public IServer {
  private:
-  std::string id_;
-  std::unique_ptr<Server> server_;
+  static bool hasAccess(const std::string& user) { return user == "admin"; }
 
-  bool checkAccess() {
-    LOG("Checking access before forwarding request.");
-    if (id_ != kAdmin) {
-      LOG("Invalid id. Return");
-      return false;
-    }
-
-    // Lazy initialization: construct Server only on first access
-    if (server_ == nullptr) {
-      server_ = std::make_unique<Server>(id_);
-    }
-    return true;
-  }
-
-  void logAccess() const { LOG_S("Logging request time: " << id_); }
-
- public:
-  explicit ServerProxy(std::string id) : id_{std::move(id)} {
-    LOG_S("CTR: " << id_);
-  }
-
-  void request() override {
-    if (checkAccess()) {
-      server_->request();
-      logAccess();
-    }
-  }
+  std::unique_ptr<Server> server_;  // created on demand
+  int requests_{0};
 };
 
 void run() {
-  {
-    std::string connection_id = "admin";
-    // Server is not constructed until first request is made
-    auto server_proxy = std::make_unique<ServerProxy>(connection_id);
-    LOG("User request");
-    clientCode(server_proxy.get());
-  }
-
-  {
-    // Server is not constructed if id is invalid
-    std::string invalid_id = "xxx";
-    auto server_proxy = std::make_unique<ServerProxy>(invalid_id);
-    LOG("User request");
-    clientCode(server_proxy.get());
-  }
+  LOG_SECTION("Proxy: same interface, controlled access");
+  ServerProxy proxy;
+  LOG("  proxy constructed - no Server exists yet");
+  clientCode(proxy, "guest");  // denied, the Server is still not created
+  clientCode(proxy, "admin");  // creates the Server lazily
+  clientCode(proxy, "admin");  // reuses it
 }
-}  // namespace proxy_pattern
 
-class ProxyExample : public IExample {
- public:
-  std::string group() const override { return "dp/structural"; }
-  std::string name() const override { return "Proxy"; }
-  std::string description() const override { return "Proxy Pattern Example"; }
-  void execute() override {
-    problem::run();
-    proxy_pattern::run();
-  }
-};
-
-REGISTER_EXAMPLE(ProxyExample);
 }  // namespace
+
+LAB_EXAMPLE("Proxy",
+            "a stand-in that adds lazy creation, access control and logging") {
+  problem::run();
+  run();
+}

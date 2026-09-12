@@ -23,8 +23,10 @@ mvvm::DisplayWidget::DisplayWidget(const std::string& title, std::string color,
 }
 
 void mvvm::DisplayWidget::updateLabel(const std::string& text) {
-  std::string markup = "<span foreground='" + color_ +
-                       "' size='x-large' weight='bold'>" + text + "</span>";
+  // The text comes from the user: escape it before building Pango markup.
+  const std::string markup = "<span foreground='" + color_ +
+                             "' size='x-large' weight='bold'>" +
+                             Glib::Markup::escape_text(text).raw() + "</span>";
   labelData_.set_markup(markup);
 }
 

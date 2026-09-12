@@ -1,82 +1,107 @@
-// cppcheck-suppress-file[]
-// + - * /
-#include <iostream>
-#include "ExampleRegistry.h"
+// -----------------------------------------------------------------------------
+// Overloading arithmetic operators: + - * / and += -= *= /=
+//
+// Canonical pattern:
+//   - Implement the compound operator (+=) as a MEMBER returning *this.
+//   - Implement the binary operator (+) as a NON-MEMBER in terms of +=.
+//     A non-member works when the left operand is not our class: 5 + cents.
+//   - Take operands by const reference (or by value when cheap) and return a
+//     new object by value.
+//
+// Reference: https://en.cppreference.com/w/cpp/language/operators#Binary_arithmetic_operators
+// -----------------------------------------------------------------------------
+
+#include <stdexcept>
+
+#include "lab/Example.h"
+#include "lab/Logger.h"
 
 namespace {
+
 class Cents {
- private:
-  int m_cents_{};
-
  public:
-  explicit Cents(int cents) : m_cents_{cents} {}
-  int getCents() const { return m_cents_; }
+  explicit Cents(int cents) : cents_{cents} {}
+  int value() const { return cents_; }
 
-  // Problem: A member operator only works when the left-hand operand is an object of the class (e.g., Cents).
-  // Cents sum = 5 + s1;
-  // int.operator+(5)
-  // => error
-  //   Cents operator+(const Cents& other) {
-  //     return Cents{this->getCents() + other.getCents()};
-  //   }
-
-  // For operands of different types
-  friend Cents operator+(int v1, const Cents& c2) {
-    return Cents{v1 + c2.getCents()};
+  // Compound assignment operators modify *this and return it by reference,
+  // so they can be chained like built-in types.
+  Cents& operator+=(const Cents& other) {
+    cents_ += other.cents_;
+    return *this;
+  }
+  Cents& operator-=(const Cents& other) {
+    cents_ -= other.cents_;
+    return *this;
+  }
+  Cents& operator*=(int factor) {
+    cents_ *= factor;
+    return *this;
+  }
+  Cents& operator/=(int divisor) {
+    if (divisor == 0) {
+      throw std::invalid_argument("division of Cents by zero");
+    }
+    cents_ /= divisor;
+    return *this;
   }
 
-  friend Cents operator+(const Cents& c1, int v2) {
-    return Cents{v2 + c1.getCents()};
-  }
-
-  // ArithmeticOperator operators
-  friend Cents operator+(const Cents& c1, const Cents& c2) {
-    return Cents{c1.getCents() + c2.getCents()};
-  }
-
-  friend Cents operator-(const Cents& c1, const Cents& c2) {
-    return Cents{c1.getCents() - c2.getCents()};
-  }
-
-  friend Cents operator*(const Cents& c1, const Cents& c2) {
-    return Cents{c1.getCents() * c2.getCents()};
-  }
-
-  friend Cents operator/(const Cents& c1, const Cents& c2) {
-    return Cents{c1.getCents() / c2.getCents()};
-  }
+ private:
+  int cents_;
 };
+
+// Non-members built on the compound operators. `lhs` is taken by value: it is
+// the copy we modify and return.
+Cents operator+(Cents lhs, const Cents& rhs) {
+  return lhs += rhs;
+}
+Cents operator-(Cents lhs, const Cents& rhs) {
+  return lhs -= rhs;
+}
+Cents operator*(Cents lhs, int factor) {
+  return lhs *= factor;
+}
+Cents operator*(int factor, Cents rhs) {  // allows 3 * cents
+  return rhs *= factor;
+}
+Cents operator/(Cents lhs, int divisor) {
+  return lhs /= divisor;
+}
+
+// Mixed operands: with a member operator+ only `cents + 5` could work,
+// never `5 + cents`, because the left operand of a member is always *this.
+Cents operator+(const Cents& lhs, int rhs) {
+  return Cents{lhs.value() + rhs};
+}
+Cents operator+(int lhs, const Cents& rhs) {
+  return Cents{lhs + rhs.value()};
+}
 
 void run() {
-  Cents c1{25};
-  Cents c2{75};
+  LOG_SECTION("Binary operators");
+  const Cents a{25};
+  const Cents b{75};
+  LOG_S("a + b    = " << (a + b).value());
+  LOG_S("a - b    = " << (a - b).value());
+  LOG_S("a * 3    = " << (a * 3).value() << ", 3 * a = " << (3 * a).value());
+  LOG_S("b / 2    = " << (b / 2).value());
+  LOG_S("a + 5    = " << (a + 5).value() << ", 5 + a = " << (5 + a).value());
 
-  // Sum
-  Cents sum = c1 + c2;
-  Cents sum2 = operator+(125, c2);
-  std::cout << "Sum: " << sum.getCents() << " " << sum2.getCents() << std::endl;
+  LOG_SECTION("Compound assignment and chaining");
+  Cents total{0};
+  total += a;
+  (total += b) += Cents{100};  // returns Cents&, so it can be chained
+  LOG_S("total    = " << total.value());
 
-  // Sub
-  Cents sub = c1 - c2;
-  std::cout << "Sub: " << sub.getCents() << std::endl;
-
-  // Div
-  Cents div = c1 / c2;
-  std::cout << "Div: " << div.getCents() << std::endl;
-
-  // Mul
-  Cents mul = c1 * c2;
-  std::cout << "Mul: " << mul.getCents() << std::endl;
+  try {
+    total /= 0;
+  } catch (const std::invalid_argument& e) {
+    LOG_S("total /= 0 throws: " << e.what());
+  }
 }
+
 }  // namespace
 
-class ArithmeticOperator : public IExample {
- public:
-  std::string group() const override { return "core/overloading_operator"; }
-  std::string name() const override { return "ArithmeticOperator"; }
-  std::string description() const override { return ""; }
-
-  void execute() override { run(); }
-};
-
-REGISTER_EXAMPLE(ArithmeticOperator);
+LAB_EXAMPLE("ArithmeticOperator",
+            "overload + - * / via += -= *= /=, mixed operand types") {
+  run();
+}

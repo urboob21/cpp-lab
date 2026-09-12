@@ -1,3 +1,16 @@
+# Streams and files
+
+| Example | Topic |
+|---|---|
+| `IOStream` | `cout`/`cerr`/`clog`, redirecting `cin`, stream states, input validation |
+| `StringStream` | building and parsing strings with `<sstream>` |
+| `OutputFormatting` | `<iomanip>` flags and manipulators, sticky state, `std::format` |
+| `FileIO` | writing, appending and reading text files |
+| `BinaryFileHandling` | binary records, serializing strings, random access |
+| `Directory` | `std::filesystem`: paths, creating, listing, removing |
+| `TerminalColor` | ANSI escape codes for colors and text effects |
+
+---
 ## 1. I/O Streams
 - It is a part of the STL.
 - I/O is implemented with `streams`.

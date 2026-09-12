@@ -1,41 +1,84 @@
+// -----------------------------------------------------------------------------
+// Standard streams and stream states
+//
+//   std::cin   standard input  (std::istream)
+//   std::cout  standard output (std::ostream, buffered)
+//   std::cerr  standard error  (unbuffered: appears immediately)
+//   std::clog  standard error  (buffered)
+//
+// Every stream has state flags: good(), eof(), fail(), bad(). A failed
+// extraction sets failbit and all further reads do nothing until clear().
+// Validate input with `if (stream >> value)`.
+//
+// Reference: https://www.learncpp.com/cpp-tutorial/stream-states-and-input-validation/
+// -----------------------------------------------------------------------------
+
 #include <iostream>
+#include <limits>
 #include <sstream>
 #include <string>
 
-#include "ExampleRegistry.h"
+#include "lab/Example.h"
+#include "lab/Logger.h"
 
 namespace {
-void run() {
-  std::cout << "\n--- IO Streams Example ---\n";
-  // 1) input stream
 
-  // input source using std::stringstream
-  std::string input_str{};
-  std::stringstream input("input aa aa");
-
-  // save and redirect std::cin
-  auto* old_buf = std::cin.rdbuf(input.rdbuf());
-
-  // input from keyboard,
-  // std::cin >> inputStr; // skip whitespace
-  std::getline(std::cin, input_str);  // get all
-
-  // have to restore std::cin
-  std::cin.rdbuf(old_buf);
-
-  // 2) output stream
-  std::cout << "[cout] " << input_str << '\n';
-  std::cerr << "[cerr] " << input_str << '\n';  // unbuffered
-  std::clog << "[clog] " << input_str << '\n';  // buffered
+void standardStreams() {
+  LOG_SECTION("cout, cerr and clog");
+  std::cout << "[cout] regular output\n";
+  std::cerr << "[cerr] errors, unbuffered\n";
+  std::clog << "[clog] diagnostics, buffered\n";
+  std::cout.flush();
 }
+
+void redirectCin() {
+  LOG_SECTION("Reading std::cin from a string");
+  // Every stream reads through a stream buffer (rdbuf). Swapping the buffer
+  // makes std::cin read from a string - handy for tests.
+  std::istringstream fake_input("Ada Lovelace\n36\n");
+  std::streambuf* original = std::cin.rdbuf(fake_input.rdbuf());
+
+  std::string name;
+  int age = 0;
+  std::getline(std::cin, name);  // whole line, including the space
+  std::cin >> age;
+
+  std::cin.rdbuf(original);  // always restore the original buffer
+  LOG_S("read name = \"" << name << "\", age = " << age);
+}
+
+void validation() {
+  LOG_SECTION("Stream states and input validation");
+  std::istringstream input("42 abc 7");
+  int value = 0;
+
+  input >> value;
+  LOG_S("read 42  -> value = " << value << ", good() = " << std::boolalpha
+                               << input.good());
+
+  if (!(input >> value)) {  // "abc" is not a number
+    LOG_S("read abc -> fail() = " << std::boolalpha << input.fail()
+                                  << ", value = " << value
+                                  << " (a failed read stores 0)");
+    input.clear();  // reset the flags...
+    input.ignore(std::numeric_limits<std::streamsize>::max(),
+                 ' ');  // ...skip the bad token
+  }
+
+  if (input >> value) {
+    LOG_S("read 7   -> value = " << value);
+  }
+  input >> value;
+  LOG_S("read past the end -> eof() = " << std::boolalpha << input.eof()
+                                        << ", fail() = " << input.fail());
+}
+
 }  // namespace
 
-class IOStream : public IExample {
- public:
-  std::string group() const override { return "core/filehandle"; }
-  std::string name() const override { return "IOStream"; }
-  std::string description() const override { return ""; }
-  void execute() override { run(); }
-};
-
-REGISTER_EXAMPLE(IOStream);
+LAB_EXAMPLE(
+    "IOStream",
+    "cout/cerr/clog, redirecting cin, stream states and input validation") {
+  standardStreams();
+  redirectCin();
+  validation();
+}

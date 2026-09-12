@@ -1,201 +1,172 @@
-// Observer is a behavioral design pattern that lets you define a subscription
-// mechanism to notify multiple objects about any events that happen to the
-// object they’re observing. Usage examples: The most popular usage of the
-// Observer pattern in C++ code is facilitating communications between GUI
-// components of an app. The synonym of the Observer is the `Controller` part of
-// MVC pattern. Appicability:
-// (*)   when changes to the state of one object may require changing other
-// objects, and the actual set of objects is unknown beforehand or changes
-// dynamically.
-// (**)   when some objects in your app must observe others, but only for a
-// limited time or in specific cases.
+// -----------------------------------------------------------------------------
+// Observer (behavioral pattern)
+//
+// Defines a subscription mechanism: a subject (publisher) notifies all its
+// observers (subscribers) when an event happens, without knowing their
+// concrete types.
+//
+// Use it when:
+//   - changes in one object must update others, and the set of interested
+//     objects is not known in advance or changes at run time
+//   - some objects only need to listen for a limited time
+//
+// Real world: GUI events, model -> view updates (MVC, see src/ap), signals and
+// slots, event buses.
+//
+// Participants:
+//   Subject           Button - attach / detach / notify
+//   Observer          ClickListener interface - onEvent()
+//   ConcreteObserver  AnalyticsListener, SoundListener
+//
+// Pitfall: the subject stores pointers to observers. An observer destroyed
+// while still attached leaves a dangling pointer - always detach first, or use
+// subscriptions that detach automatically (RAII).
+//
+// UML: docs/uml/dp/behavioral_observer.drawio.svg
+// -----------------------------------------------------------------------------
 
-// UML: docs/uml/patterns_behavioral_observer.drawio.svg
-
-#include <list>
+#include <algorithm>
+#include <functional>
 #include <string>
-#include "Logger.h"
+#include <utility>
+#include <vector>
+
+#include "lab/Example.h"
+#include "lab/Logger.h"
 
 namespace {
-namespace observer {
 
-enum class Event {
-  kCreate = 0,
-  kRead,
-  kUpdate,
-  kDelete,
-};
+enum class Event { kPressed, kReleased };
 
-/**
- * @brief Get the Event Name object
- * 
- * This is a static definition in anonymous namespace
- * @param e 
- * @return const char* 
- */
-inline std::string getEventName(const Event& e) {
-  switch (e) {
-    case Event::kCreate:
-      return "CREATE";
-    case Event::kRead:
-      return "READ";
-    case Event::kUpdate:
-      return "UPDATE";
-    case Event::kDelete:
-      return "DELETE";
-  }
-  return "UNKNOWN";
+std::string toString(Event event) {
+  return event == Event::kPressed ? "pressed" : "released";
 }
 
-/**
- * IObserver aka Subscriber
- * The Subscriber interface declares the notification interface.
- * In most cases, it consists of a single update method.
- * The method may have several parameters that let the publisher pass some event
- * details along with the update. E.g. Event Listen to UI events
- */
-class IListenerObserver {
+namespace classic {
+
+/// Observer interface.
+class Listener {
  public:
-  virtual ~IListenerObserver() = default;
-
-  // update
-  virtual void update(const Event& e) = 0;
-
-  virtual std::string get_name() const = 0;
+  virtual ~Listener() = default;
+  virtual void onEvent(const std::string& source, Event event) = 0;
 };
 
-/**
- * Subject aka Publisher
- * The Publisher issues events of interest to other objects.
- * These events occur when the publisher changes its state or executes some
- * behaviors. Publishers contain a subscription infrastructure that lets new
- * subscribers join and current subscribers leave the list.
- *
- * E.g Widget dispatches click events to observers
- */
-class IWidgetSubject {
+/// Subject.
+class Button {
  public:
-  virtual ~IWidgetSubject() = default;
+  explicit Button(std::string name) : name_{std::move(name)} {}
 
-  // addListener
-  virtual void attach(IListenerObserver* observer) = 0;
-  // removeLister
-  virtual void detach(IListenerObserver* observer) = 0;
-  // e.g.click
-  virtual void notify(const Event& e) = 0;
-};
+  void attach(Listener& listener) { listeners_.push_back(&listener); }
+  void detach(Listener& listener) { std::erase(listeners_, &listener); }
 
-class ButtonConcreteSubject : public IWidgetSubject {
+  void press() { notify(Event::kPressed); }
+  void release() { notify(Event::kReleased); }
+
  private:
-  std::list<IListenerObserver*> listeners_;
+  void notify(Event event) {
+    LOG_S("  " << name_ << " " << toString(event) << ", notifying "
+               << listeners_.size() << " listener(s)");
+    for (Listener* listener : listeners_) {
+      listener->onEvent(name_, event);
+    }
+  }
 
+  std::string name_;
+  std::vector<Listener*> listeners_;  // non-owning
+};
+
+class AnalyticsListener : public Listener {
  public:
-  void attach(IListenerObserver* observer) override {
-    LOG("attched: " + observer->get_name());
-    listeners_.push_back(observer);
+  void onEvent(const std::string& source, Event event) override {
+    ++events_;
+    LOG_S("    [analytics] recorded " << source << " " << toString(event)
+                                      << " (total " << events_ << ")");
   }
 
-  void detach(IListenerObserver* observer) override {
-    LOG("detached: " + observer->get_name());
-    listeners_.remove(observer);
-  }
+ private:
+  int events_{0};
+};
 
-  void notify(const Event& e) override {
-    LOG("notify event: " + getEventName(e));
-    for (IListenerObserver* o : listeners_) {
-      o->update(e);
+class SoundListener : public Listener {
+ public:
+  void onEvent(const std::string& /*source*/, Event event) override {
+    if (event == Event::kPressed) {
+      LOG("    [sound] click!");
     }
   }
 };
 
-class AbstractListenerObserver : public IListenerObserver {
- private:
-  std::string name_;
+void run() {
+  LOG_SECTION("Classic Observer with an interface");
+  Button save{"Save button"};
+  AnalyticsListener analytics;
+  SoundListener sound;
 
- protected:
-  void log(const Event& e) const {
-    LOG(this->get_name() + " updated after event: " + getEventName(e));
+  save.attach(analytics);
+  save.attach(sound);
+  save.press();
+  save.release();
+
+  LOG("  -- detaching the sound listener --");
+  save.detach(sound);
+  save.press();
+}
+
+}  // namespace classic
+
+namespace callbacks {
+
+/// A lighter alternative: observers are std::function callbacks.
+class Button {
+ public:
+  using Callback = std::function<void(Event)>;
+
+  /// Returns an id that can be used to unsubscribe.
+  int subscribe(Callback callback) {
+    subscribers_.emplace_back(next_id_, std::move(callback));
+    return next_id_++;
   }
 
- public:
-  explicit AbstractListenerObserver(std::string name)
-      : name_(std::move(name)) {}
+  void unsubscribe(int id) {
+    std::erase_if(subscribers_,
+                  [id](const auto& entry) { return entry.first == id; });
+  }
 
-  std::string get_name() const override { return name_; }
-};
+  void press() const {
+    for (const auto& [id, callback] : subscribers_) {
+      callback(Event::kPressed);
+    }
+  }
 
-/**
- * Concrete Subscribers perform some actions in response to notifications issued
- * by the publisher. All of these classes must implement the same interface so
- * the publisher isn’t coupled to concrete classes.
- */
-class ConcreteListenerObserverA : public AbstractListenerObserver {
- public:
-  void update(const Event& e) override { log(e); }
-
-  explicit ConcreteListenerObserverA(std::string name)
-      : AbstractListenerObserver(std::move(name)){};
-};
-
-class ConcreteListenerObserverB : public AbstractListenerObserver {
- public:
-  explicit ConcreteListenerObserverB(std::string name)
-      : AbstractListenerObserver(std::move(name)){};
-
-  void update(const Event& e) override { log(e); }
+ private:
+  std::vector<std::pair<int, Callback>> subscribers_;
+  int next_id_{0};
 };
 
 void run() {
+  LOG_SECTION("Observers as std::function callbacks");
+  Button button;
+  int clicks = 0;
+  const int counter = button.subscribe([&clicks](Event) { ++clicks; });
+  button.subscribe([](Event event) {
+    LOG_S("    lambda observer got " << toString(event));
+  });
 
-  // Client code that triggers event
-  auto client_code = [](IWidgetSubject* const widget, const Event& e) {
-    widget->notify(e);
-  };
-
-  // Create subject - Button
-  IWidgetSubject* btn = new ButtonConcreteSubject();
-
-  // Create observers - Listenerss
-  IListenerObserver* listener_1 = new ConcreteListenerObserverA("listener 1");
-  IListenerObserver* listener_2 = new ConcreteListenerObserverA("listener 2");
-  IListenerObserver* listener_3 = new ConcreteListenerObserverA("listener 3");
-  IListenerObserver* listener_4 = new ConcreteListenerObserverB("listener 4");
-
-  // Register observers to the subject
-  btn->attach(listener_1);
-  btn->attach(listener_2);
-  btn->attach(listener_3);
-  btn->attach(listener_4);
-
-  // Notify all observers
-  client_code(btn, Event::kCreate);
-
-  // Unregister one observer
-  btn->detach(listener_2);
-
-  // Notify all observers
-  client_code(btn, Event::kUpdate);
-
-  delete btn;
-  delete listener_1;
-  delete listener_2;
-  delete listener_3;
-  delete listener_4;
+  button.press();
+  button.press();
+  button.unsubscribe(counter);
+  button.press();
+  LOG_S("  counter observer saw "
+        << clicks << " clicks (it unsubscribed before the third)");
 }
 
-}  // namespace observer
+}  // namespace callbacks
+
 }  // namespace
 
-#include "ExampleRegistry.h"
-
-class ObserverExample : public IExample {
- public:
-  std::string group() const override { return "dp/behavioral"; }
-  std::string name() const override { return "Observer"; }
-  std::string description() const override {
-    return "Observer Pattern Example";
-  }
-  void execute() override { observer::run(); }
-};
-
-REGISTER_EXAMPLE(ObserverExample);
+LAB_EXAMPLE(
+    "Observer",
+    "publish/subscribe with listener interfaces or std::function callbacks") {
+  classic::run();
+  callbacks::run();
+}

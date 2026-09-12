@@ -1,116 +1,134 @@
-// cppcheck-suppress-file [unreadVariable]
+// -----------------------------------------------------------------------------
+// Pointers
+//
+//   int* p = &x;    p holds the ADDRESS of x;  *p reads/writes x itself
+//
+//   const int* p          pointer to const : *p cannot change, p can
+//   int* const p          const pointer    : p cannot change, *p can
+//   const int* const p    both are fixed
+//   (read right to left: "p is a const pointer to an int that is const")
+//
+// Pitfalls: dereferencing nullptr or a dangling pointer (to an object that no
+// longer exists) is undefined behavior. For ownership use smart pointers
+// (see core/smart_pointer); raw pointers should only observe.
+//
+// Reference: https://en.cppreference.com/w/cpp/language/pointer
+// -----------------------------------------------------------------------------
 
-#include <iostream>
+#include <cstddef>
 
-// Simple function to demonstrate function pointers
-int foo(int x) {
-  std::cout << "x = " << x << std::endl;
-  return x;
+#include "lab/Example.h"
+#include "lab/Logger.h"
+
+namespace {
+
+void basics() {
+  LOG_SECTION("Address-of & and dereference *");
+  int value = 10;
+  int* pointer = &value;
+  LOG_S("value = " << value << ", &value = " << &value
+                   << ", pointer = " << pointer);
+  LOG_S("*pointer = " << *pointer);
+
+  *pointer = 20;  // writes through the pointer
+  LOG_S("after *pointer = 20, value = " << value);
+
+  const int* nothing = nullptr;  // points to no object
+  LOG_S("nullptr pointer = " << nothing << " - check before dereferencing");
 }
 
-void byPtr(int* x) {
-  (*x)++;
-  std::cout << "x = " << *x << std::endl;
+void constCombinations() {
+  LOG_SECTION("const and pointers");
+  int a = 1;
+  int b = 2;
+
+  const int* to_const = &a;  // pointer to const
+  // *to_const = 5;          // error: the pointee is read-only through this pointer
+  to_const = &b;  // OK: the pointer itself may change
+  LOG_S("const int* to_const       -> *to_const = " << *to_const);
+
+  int* const const_pointer = &a;  // const pointer
+  *const_pointer = 5;             // OK: the pointee may change
+  // const_pointer = &b;          // error: the pointer is fixed
+  LOG_S("int* const const_pointer  -> a is now " << a);
+
+  const int* const both = &b;  // nothing may change
+  LOG_S("const int* const both     -> *both = " << *both);
 }
 
-void byConstPtr(const int* const x) {
-  // *x++;   // error
-  std::cout << "x = " << *x << std::endl;
+void arithmetic() {
+  LOG_SECTION("Pointer arithmetic");
+  int values[] = {10, 20, 30, 40};
+  int* first = values;     // array decays to a pointer to its first element
+  int* third = first + 2;  // moves by 2 ELEMENTS, not 2 bytes
+  LOG_S("*(first + 2) = " << *third);
+  LOG_S("third - first = " << third - first << " elements ("
+                           << static_cast<std::ptrdiff_t>(sizeof(int)) *
+                                  (third - first)
+                           << " bytes)");
+  ++third;
+  LOG_S("after ++third: *third = " << *third);
+  // first + 4 may be computed (one past the end) but must not be dereferenced.
 }
 
-void byPtrConst(const int* x) {
-  // *x++; // error
-  std::cout << "x = " << *x << std::endl;
+void pointerToPointer() {
+  LOG_SECTION("Pointer to pointer");
+  int value = 7;
+  int* pointer = &value;
+  int** pointer_to_pointer = &pointer;
+  **pointer_to_pointer = 70;
+  LOG_S("**pointer_to_pointer = 70 -> value = " << value);
 }
 
-void byConstPtrConst(const int* const x) {
-  // *x++; // error
-  std::cout << "x = " << *x << std::endl;
+void voidPointer() {
+  LOG_SECTION("void* (generic pointer)");
+  int value = 42;
+  void* generic = &value;  // any object pointer converts to void*
+  // *generic;             // error: cannot dereference void*
+  const int* back = static_cast<int*>(generic);  // you must know the real type
+  LOG_S("static_cast<int*>(generic) -> " << *back);
 }
 
-static int global = 42;
-int* returnPtr() {
-  return &global;  // the object must outlive the reference.
+int twice(int x) {
+  return 2 * x;
 }
 
-void pointers() {
-  std::cout << "\n--- Pointers Type Examples ---\n";
-  int a = 10;
-  std::cout << "a = " << a << "\n";
-
-  // * 1. Basics
-  const int* null_ptr = nullptr;
-  std::cout << "Address of nullptr (null_ptr): " << null_ptr << "\n";
-
-  // '&' gives the address of a variable
-  int* ptr_a = &a;
-  std::cout << "Address of a (&a): " << &a << "\n";
-  std::cout << "Value stored in pointer (ptr_a): " << ptr_a << "\n";
-
-  // '*' dereferences a pointer (accesses the value at that address)
-  std::cout << "Value of a via *ptr_a: " << *ptr_a << "\n";
-
-  // Change value of a through its pointer
-  *ptr_a = 2;
-  std::cout << "Value of a after *ptr_a = 2: " << a << "\n";
-
-  // * 2. Pointer to const
-  const int const_var = 100;
-  const int* ptr_const_var = &const_var;
-  // *ptr_const_var = 10;     // cannot modify the value through pointer
-  std::cout << "Value of ptr_const_var " << *ptr_const_var << "\n";
-  ptr_const_var = &a;  // can point somewhere else
-  std::cout << "Value of ptr_const_var " << *ptr_const_var << "\n";
-
-  // * 3. Const pointer
-  int* const const_ptr_a = &a;
-  *const_ptr_a = 10;  // can change value
-  // const_ptr_a = nullptr;   //cannot point to another variable
-
-  // * 4. Const pointer to const
-  const int* const const_ptr_const_var = &a;
-  // *const_ptr_const_var = 10;  // cannot modify the value through pointer
-  // const_ptr_const_var = nullptr; //cannot point to another variable
-
-  // * 5. Pointer to pointer
-  int** ptr_ptr_a = new int*[10];  // dynamically allocate an array of 10 int*
-  ptr_ptr_a[0] = &a;
-  std::cout << "Value via pointer-to-pointer (*ptr_ptr_a[0]): " << *ptr_ptr_a[0]
-            << "\n";
-  delete[] ptr_ptr_a;  // always free heap memory
-
-  // * 6. Void pointer (generic pointer)
-  // void *void_ptr = static_cast<int*>(&a);
-  void* void_ptr = &a;  // C-style pointer casting [cstyleCast]
-
-  std::cout << "Value via void pointer (after casting): "
-            << *static_cast<int*>(void_ptr) << "\n";
-
-  // * 7. Function pointer
-  int (*fcn_ptr)(int) = &foo;
-  (*fcn_ptr)(5);  // call via dereference
-  fcn_ptr(10);    // call directly
-
-  // 8. Passing pointers
-  int in = 10;
-  byPtr(&in);
-  byConstPtr(&in);
-  byPtrConst(&in);
-  byConstPtrConst(&in);
-
-  // * 9. Return by ptr(address)
-  const int* b_ptr = returnPtr();
-  std::cout << "By ptr: " << *b_ptr << '\n';
+void increment(int* counter) {
+  if (counter != nullptr) {  // pointers can be null, references cannot
+    ++*counter;
+  }
 }
 
-#include "ExampleRegistry.h"
+int* globalCounter() {
+  static int counter = 100;  // lives for the whole program
+  return &counter;           // never return the address of a local variable!
+}
 
-class CPointers : public IExample {
- public:
-  std::string group() const override { return "core/datatype"; }
-  std::string name() const override { return "Pointer"; }
-  std::string description() const override { return "Compound type: Pointers"; }
-  void execute() override { pointers(); }
-};
+void functionsAndParameters() {
+  LOG_SECTION("Function pointers and pointer parameters");
+  int (*operation)(int) =
+      &twice;  // pointer to a function taking int, returning int
+  LOG_S("(*operation)(5) = " << (*operation)(5)
+                             << ", operation(6) = " << operation(6));
 
-REGISTER_EXAMPLE(CPointers);
+  int counter = 0;
+  increment(&counter);
+  increment(nullptr);  // safely ignored
+  LOG_S("increment(&counter) -> counter = " << counter);
+
+  const int* global = globalCounter();
+  LOG_S("*globalCounter() = " << *global);
+}
+
+}  // namespace
+
+LAB_EXAMPLE("Pointer",
+            "address-of, dereference, const pointers, arithmetic, void*, "
+            "function pointers") {
+  basics();
+  constCombinations();
+  arithmetic();
+  pointerToPointer();
+  voidPointer();
+  functionsAndParameters();
+}

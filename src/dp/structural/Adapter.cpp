@@ -1,148 +1,149 @@
+// -----------------------------------------------------------------------------
+// Adapter (structural pattern)
+//
+// Lets objects with incompatible interfaces work together. An adapter wraps an
+// existing class (the adaptee) and exposes the interface the client expects
+// (the target).
+//
+// Use it when:
+//   - you want to use an existing or third-party class whose interface does not
+//     match the rest of your code
+//   - you cannot (or should not) modify that class
+//
+// Participants:
+//   Target   interface the client depends on
+//   Adaptee  existing class with an incompatible interface
+//   Adapter  implements Target by translating calls to the Adaptee
+//
+// Two variants: the OBJECT adapter holds the adaptee (composition, preferred);
+// the CLASS adapter inherits from it (here: private inheritance).
+//
+// UML: docs/uml/dp/structural_adapter.drawio.svg
+// -----------------------------------------------------------------------------
+
 #include <memory>
-#include "Logger.h"
+#include <string>
+#include <utility>
+#include <vector>
 
-#include "ExampleRegistry.h"
+#include "lab/Example.h"
+#include "lab/Logger.h"
 
-namespace adapter_pattern {
+namespace {
 
-/// @class Adaptee
-/// @brief Existing class with an incompatible interface
-class Adaptee {
- public:
-  void specific_request() {
-    ++dummy_;
-    LOG("Adaptee::specific_request()");
-  }
+namespace basic {
 
- private:
-  int dummy_{0};
-};
-
-/// @class Target
-/// @brief Interface expected by the client
+/// Target: the interface the client code expects.
 class Target {
  public:
   virtual ~Target() = default;
-
   virtual void request() = 0;
 };
 
-/// @class ConcreteTarget
-/// @brief A normal implementation of Target
-class ConcreteTarget : public Target {
+/// Adaptee: useful, but with a different interface.
+class Adaptee {
  public:
-  void request() override { LOG("request"); }
+  void specificRequest(int code) const {
+    LOG_S("    Adaptee::specificRequest(" << code << ")");
+  }
 };
 
-/// @class Adapter
-/// @brief Converts the Target interface into the Adaptee interface
-class Adapter : public Target {
+/// Object adapter: HAS an adaptee.
+class ObjectAdapter : public Target {
  public:
-  explicit Adapter(std::unique_ptr<Adaptee> adaptee)
-      : adaptee_(std::move(adaptee)) {
-    LOG("CTR");
-  }
-
-  void request() override { adaptee_->specific_request(); }
+  explicit ObjectAdapter(std::unique_ptr<Adaptee> adaptee)
+      : adaptee_{std::move(adaptee)} {}
+  void request() override { adaptee_->specificRequest(42); }
 
  private:
   std::unique_ptr<Adaptee> adaptee_;
 };
 
-/// @brief Client code only depends on Target.
-void client_code(Target& target) {
-  LOG("");
+/// Class adapter: IS implemented in terms of the adaptee (private inheritance).
+class ClassAdapter : public Target, private Adaptee {
+ public:
+  void request() override { specificRequest(7); }
+};
+
+void clientCode(Target& target) {
+  LOG("  client calls request()");
   target.request();
 }
 
 void run() {
-  LOG("Adapter Example");
-  {
-    ConcreteTarget target;
-    client_code(target);
-  }
-  LOG("");
-
-  {
-    auto adaptee = std::make_unique<Adaptee>();
-    Adapter adapter(std::move(adaptee));
-    client_code(adapter);
-  }
+  LOG_SECTION("Object adapter and class adapter");
+  ObjectAdapter object_adapter{std::make_unique<Adaptee>()};
+  clientCode(object_adapter);
+  ClassAdapter class_adapter;
+  clientCode(class_adapter);
 }
-}  // namespace adapter_pattern
 
-namespace case_study {
-// Target interface expected by the existing system
-class PaymentSystem {
+}  // namespace basic
+
+namespace payments {
+
+/// Target: what the shop checkout already uses.
+class PaymentProcessor {
  public:
-  virtual void pay_with_card(const std::string& card_number) {
-    LOG_S("Payment using card: " << card_number);
-  }
-
-  virtual ~PaymentSystem() = default;
+  virtual ~PaymentProcessor() = default;
+  virtual bool pay(const std::string& customer, double amount_eur) = 0;
 };
 
-// Adaptee: a new payment API with an incompatible interface
-class PayPalAPI {
+class CardProcessor : public PaymentProcessor {
  public:
-  void send_payment(const std::string& email) {
-    LOG_S("Payment sent via PayPal to " << email);
-    dummy_++;
+  bool pay(const std::string& customer, double amount_eur) override {
+    LOG_S("    [card] charged " << amount_eur << " EUR to the card of "
+                                << customer);
+    return true;
+  }
+};
+
+/// Adaptee: a third-party SDK we cannot change. Different method name,
+/// different parameters, amounts in cents and an error code instead of bool.
+class PayPalSdk {
+ public:
+  int sendPayment(const std::string& email, long amount_cents,
+                  const std::string& currency) const {
+    LOG_S("    [PayPal SDK] sent " << amount_cents << " cents (" << currency
+                                   << ") to " << email);
+    return 0;  // 0 = success
+  }
+};
+
+/// Adapter: translates the checkout's call into the SDK's call.
+class PayPalAdapter : public PaymentProcessor {
+ public:
+  bool pay(const std::string& customer, double amount_eur) override {
+    const std::string email =
+        customer + "@example.com";  // look up the PayPal account
+    const auto cents = static_cast<long>(amount_eur * 100.0 + 0.5);
+    return sdk_.sendPayment(email, cents, "EUR") == 0;
   }
 
  private:
-  int dummy_{};
+  PayPalSdk sdk_;
 };
 
-// Adapter: makes PayPalAPI compatible with PaymentSystem
-class PayPalAdapter : public PaymentSystem {
- private:
-  PayPalAPI paypal_;
+void checkout(PaymentProcessor& processor, const std::string& customer,
+              double amount) {
+  const bool ok = processor.pay(customer, amount);  // unchanged client code
+  LOG_S("  checkout for " << customer << ": " << (ok ? "paid" : "failed"));
+}
 
- public:
-  void pay_with_card(const std::string& cardNumber) override {
-    // Treat the cardNumber parameter as a PayPal email
-    paypal_.send_payment(cardNumber);
-  }
-};
-
-// Client code: uses the old interface without modification
 void run() {
-  LOG("Case Study Example");
-  std::string method;
-  std::string input;
-  method = std::string("card") + std::string("");
-  input = "1234-5678-9999";
-  // method = std::string("paypal") + std::string("");input =
-  // "user@example.com";
-
-  LOG_S("Choose payment method (card/paypal): " << method);
-
-  PaymentSystem* payment_system = nullptr;
-
-  if (method == "card") {
-    payment_system = new PaymentSystem();
-    payment_system->pay_with_card(input);
-  } else if (method == "paypal") {
-    payment_system = new PayPalAdapter();
-    payment_system->pay_with_card(input);
-  } else {
-    LOG("Unsupported payment method!");
-  }
-
-  delete payment_system;
+  LOG_SECTION("Case study: plugging a third-party SDK into existing code");
+  CardProcessor card;
+  PayPalAdapter paypal;
+  checkout(card, "alice", 19.99);
+  checkout(paypal, "bob", 42.50);
 }
-}  // namespace case_study
 
-class AdapterExample : public IExample {
- public:
-  std::string group() const override { return "dp/structural"; }
-  std::string name() const override { return "Adapter"; }
-  std::string description() const override { return "Factory Pattern Example"; }
-  void execute() override {
-    adapter_pattern::run();
-    case_study::run();
-  }
-};
+}  // namespace payments
 
-REGISTER_EXAMPLE(AdapterExample);
+}  // namespace
+
+LAB_EXAMPLE("Adapter",
+            "make an incompatible class fit the interface the client expects") {
+  basic::run();
+  payments::run();
+}

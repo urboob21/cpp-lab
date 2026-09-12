@@ -1,22 +1,20 @@
-// global constants as inline variables:
-
-// If you need global constants and your compiler is C++17 capable, prefer defining inline constexpr global variables in a header file.
+// Global constants as inline variables (preferred since C++17)
+//
 // Advantages:
-//     Can be used in constant expressions in any translation unit that includes them.
-//     Only one copy of each variable is required.
+//     Usable in constant expressions in every file that includes the header.
+//     Only one copy of each variable exists (the linker merges them).
 // Downsides:
-//     Only works in C++17 onward.
-//     Changing anything in the header file requires recompiling files including the header.
+//     Requires C++17.
+//     Changing a value recompiles every file that includes the header.
 
-#ifndef ICONSTANTS_H
-#define ICONSTANTS_H
+#ifndef CPPLAB_INLINE_CONSTANTS_H
+#define CPPLAB_INLINE_CONSTANTS_H
 
-// define your own namespace to hold constants
 namespace inline_constants {
-inline constexpr double kPi{3.14159};  // note: now inline constexpr
+inline constexpr double kPi{3.14159};
 inline constexpr double kAvogadro{6.0221413e23};
 inline constexpr double kMyGravity{
     9.2};  // m/s^2 -- gravity is light on this planet
-           // ... other related constants
 }  // namespace inline_constants
-#endif
+
+#endif  // CPPLAB_INLINE_CONSTANTS_H

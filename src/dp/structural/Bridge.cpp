@@ -1,160 +1,169 @@
+// -----------------------------------------------------------------------------
+// Bridge (structural pattern)
+//
+// Splits one large class hierarchy into two independent ones - the
+// ABSTRACTION (what the client uses) and the IMPLEMENTATION (how it is done) -
+// connected by composition.
+//
+// Problem: widgets x platforms as subclasses
+//   Button, WindowsButton, LinuxButton, Label, WindowsLabel, LinuxLabel, ...
+//   Every new widget needs one class per platform and vice versa: M x N classes.
+// Solution: Widget HAS-A Renderer. Widgets and renderers vary independently:
+//   M + N classes, and the renderer can even be switched at run time.
+//
+// Participants:
+//   Abstraction         Widget (holds a Renderer)
+//   RefinedAbstraction  Button, Label
+//   Implementor         Renderer interface
+//   ConcreteImplementor WindowsRenderer, LinuxRenderer
+//
+// UML: docs/uml/dp/structural_bridge.drawio.svg
+// -----------------------------------------------------------------------------
+
 #include <memory>
+#include <string>
 #include <utility>
-#include "ExampleRegistry.h"
-#include "Logger.h"
+
+#include "lab/Example.h"
+#include "lab/Logger.h"
 
 namespace {
+
 namespace problem {
+
 class Widget {
  public:
   virtual ~Widget() = default;
-  virtual void click_on() const = 0;
+  virtual void draw() const = 0;
 };
 
+class Button : public Widget {};
+class WindowsButton : public Button {
+ public:
+  void draw() const override { LOG("    WindowsButton::draw"); }
+};
+class LinuxButton : public Button {
+ public:
+  void draw() const override { LOG("    LinuxButton::draw"); }
+};
+class Label : public Widget {};
+class WindowsLabel : public Label {
+ public:
+  void draw() const override { LOG("    WindowsLabel::draw"); }
+};
+class LinuxLabel : public Label {
+ public:
+  void draw() const override { LOG("    LinuxLabel::draw"); }
+};
+// Adding MacOs means MacOsButton, MacOsLabel, ...; adding a Slider means
+// WindowsSlider, LinuxSlider, ... The hierarchy grows in two directions.
+
+void run() {
+  LOG_SECTION("Problem: one subclass per widget AND platform");
+  const std::unique_ptr<Widget> widgets[] = {std::make_unique<WindowsButton>(),
+                                             std::make_unique<LinuxLabel>()};
+  for (const auto& widget : widgets) {
+    widget->draw();
+  }
+}
+
+}  // namespace problem
+
+namespace bridge {
+
+/// Implementor: platform-specific primitives.
+class Renderer {
+ public:
+  virtual ~Renderer() = default;
+  virtual void drawRectangle(const std::string& label) const = 0;
+  virtual void drawText(const std::string& text) const = 0;
+};
+
+class WindowsRenderer : public Renderer {
+ public:
+  void drawRectangle(const std::string& label) const override {
+    LOG_S("    [Win32] DrawRectangle for '" << label << "'");
+  }
+  void drawText(const std::string& text) const override {
+    LOG_S("    [Win32] DrawText '" << text << "'");
+  }
+};
+
+class LinuxRenderer : public Renderer {
+ public:
+  void drawRectangle(const std::string& label) const override {
+    LOG_S("    [X11] XDrawRectangle for '" << label << "'");
+  }
+  void drawText(const std::string& text) const override {
+    LOG_S("    [X11] XDrawString '" << text << "'");
+  }
+};
+
+/// Abstraction: high-level widget logic, delegates primitives to the renderer.
+class Widget {
+ public:
+  explicit Widget(std::shared_ptr<const Renderer> renderer)
+      : renderer_{std::move(renderer)} {}
+  virtual ~Widget() = default;
+
+  virtual void draw() const = 0;
+  void setRenderer(std::shared_ptr<const Renderer> renderer) {
+    renderer_ = std::move(renderer);
+  }
+
+ protected:
+  const Renderer& renderer() const { return *renderer_; }
+
+ private:
+  std::shared_ptr<const Renderer> renderer_;  // the "bridge"
+};
+
+/// Refined abstractions.
 class Button : public Widget {
  public:
-  void click_on() const override { LOG("executed"); }
-};
-
-class ButtonWindows : public Button {
- public:
-  void click_on() const override {
-    LOG("executed");
-    Button::click_on();
+  Button(std::shared_ptr<const Renderer> renderer, std::string caption)
+      : Widget{std::move(renderer)}, caption_{std::move(caption)} {}
+  void draw() const override {
+    renderer().drawRectangle(caption_);
+    renderer().drawText(caption_);
   }
-};
 
-class ButtonLinux : public Button {
- public:
-  void click_on() const override {
-    LOG("executed");
-    Button::click_on();
-  }
+ private:
+  std::string caption_;
 };
 
 class Label : public Widget {
  public:
-  void click_on() const override { LOG("executed"); }
-};
+  Label(std::shared_ptr<const Renderer> renderer, std::string text)
+      : Widget{std::move(renderer)}, text_{std::move(text)} {}
+  void draw() const override { renderer().drawText(text_); }
 
-class LabelWindows : public Label {
- public:
-  void click_on() const override {
-    LOG("executed");
-    Label::click_on();
-  }
-};
-
-class LabelLinux : public Label {
- public:
-  void click_on() const override {
-    LOG("executed");
-    Label::click_on();
-  }
+ private:
+  std::string text_;
 };
 
 void run() {
-  LOG("Problem");
-  // [Problem 1] We have to write the Text/TextLinux ...
-  auto client_code = [](const Widget* widget) {
-    if (widget != nullptr)
-      widget->click_on();
-  };
+  LOG_SECTION("Bridge: widgets and renderers vary independently");
+  const auto windows = std::make_shared<WindowsRenderer>();
+  const auto linux_renderer = std::make_shared<LinuxRenderer>();
 
-  // [Problem 2] : Use the Bridge if you need to be able to switch
-  // implementations at runtime. how to exmaple for this still don't know
-  Widget* button = new ButtonWindows();
-  client_code(button);
-  delete button;
+  Button ok{windows, "OK"};
+  const Label title{linux_renderer, "Settings"};
+  ok.draw();
+  title.draw();
+
+  LOG("  switching the button's renderer at run time:");
+  ok.setRenderer(linux_renderer);
+  ok.draw();
 }
-}  // namespace problem
 
-namespace bridge_pattern {
-/// @class Implemetation Interface
-/// @brief Define the interface for all implementation classes
-class OsImplemetation {
- public:
-  virtual void click_on_ipl() const = 0;
-  virtual ~OsImplemetation() = default;
-};
+}  // namespace bridge
 
-class WindowsImplemetation : public OsImplemetation {
- public:
-  void click_on_ipl() const override { LOG("[Windows]"); }
-};
-
-class LinuxImplemetation : public OsImplemetation {
- public:
-  void click_on_ipl() const override { LOG("[Linux]"); }
-};
-
-/// @class Abstractio Class
-/// @brief Define the interface for the control part
-class WidgetAbstraction {
- protected:
-  std::shared_ptr<OsImplemetation> implementation_;
-
- public:
-  explicit WidgetAbstraction(std::shared_ptr<OsImplemetation> implemetation)
-      : implementation_{std::move(implemetation)} {}
-  virtual ~WidgetAbstraction() = default;
-
-  virtual void click_on() const = 0;
-};
-
-class ButtonAbstraction : public WidgetAbstraction {
- public:
-  explicit ButtonAbstraction(std::shared_ptr<OsImplemetation> implemetation)
-      : WidgetAbstraction{std::move(implemetation)} {}
-  void click_on() const override {
-    LOG("executed");
-    this->implementation_->click_on_ipl();
-  }
-};
-
-class LabelAbstraction : public WidgetAbstraction {
- public:
-  explicit LabelAbstraction(std::shared_ptr<OsImplemetation> implemetation)
-      : WidgetAbstraction{std::move(implemetation)} {}
-  void click_on() const override {
-    LOG("executed");
-    this->implementation_->click_on_ipl();
-  }
-};
-
-void run() {
-  LOG("Bridge Example");
-  auto client_code = [](const WidgetAbstraction* widget) {
-    if (widget != nullptr) {
-      LOG("");
-      widget->click_on();
-    }
-  };
-
-  {
-    auto os = std::make_shared<WindowsImplemetation>();
-    auto widget = std::make_unique<ButtonAbstraction>(os);
-    client_code(widget.get());
-  }
-
-  {
-    auto os = std::make_shared<LinuxImplemetation>();
-    auto widget = std::make_unique<LabelAbstraction>(os);
-    client_code(widget.get());
-  }
-}
-}  // namespace bridge_pattern
-
-class BridgeExample : public IExample {
- public:
-  std::string group() const override { return "dp/structural"; }
-  std::string name() const override { return "Bridge"; }
-  std::string description() const override { return "Bridge Pattern Example"; }
-  void execute() override {
-    problem::run();
-    bridge_pattern::run();
-  }
-};
-
-REGISTER_EXAMPLE(BridgeExample);
 }  // namespace
+
+LAB_EXAMPLE(
+    "Bridge",
+    "separate abstraction from implementation to avoid M x N subclasses") {
+  problem::run();
+  bridge::run();
+}

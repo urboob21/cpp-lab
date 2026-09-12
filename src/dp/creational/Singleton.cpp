@@ -1,75 +1,98 @@
-// cppcheck-suppress-file [functionStatic]
-
-// Singleton — ensure a class has only one instance, accessed globally.
+// -----------------------------------------------------------------------------
+// Singleton (creational pattern)
 //
-// Flow in this file:
-//   1. Hide the constructor                  -> private SingletonConfig()
-//   2. Ban copy / assign                     -> deleted special members
-//   3. Expose a single access point          -> get_instance() (Meyers' singleton)
-//   4. Client always uses get_instance()     -> same object everywhere
+// Ensures a class has only one instance and provides a global access point.
+//
+// Implementation in modern C++ ("Meyers' singleton"):
+//   static Config& instance() { static Config config; return config; }
+//   - The local static is created on first use.
+//   - Since C++11 that initialization is thread-safe.
+//   - Constructor private, copy and move deleted.
+//
+// Caution - a singleton is global state in disguise:
+//   - hidden dependencies (functions use it without saying so)
+//   - hard to test (tests share and modify the same instance)
+//   - destruction order problems when other statics use it at shutdown
+// Prefer passing dependencies explicitly; use a singleton only for things that
+// really are unique (e.g. the lab's own Registry and Logger).
+//
+// UML: docs/uml/dp/creational_singleton.drawio.svg
+// -----------------------------------------------------------------------------
 
+#include <mutex>
 #include <string>
-#include "ExampleRegistry.h"
-#include "Logger.h"
+#include <thread>
+#include <vector>
+
+#include "lab/Example.h"
+#include "lab/Logger.h"
 
 namespace {
-namespace singleton_pattern {
 
-/// @class Singleton class
-/// @brief defines the `GetInstance` method that serves as an alternative to constructor
-class SingletonConfig {
-
+class Config {
  public:
-  // 1. Should not be cloneable.
-  SingletonConfig(const SingletonConfig& other) = delete;
-
-  // 2. Should not be assignable
-  SingletonConfig& operator=(const SingletonConfig& other) = delete;
-
-  static SingletonConfig& get_instance() {
-    static SingletonConfig instance;
-    return instance;
+  static Config& instance() {
+    static Config config;  // created once, on the first call, thread-safe
+    return config;
   }
 
-  void init(const std::string& input) {
-    LOG(input);
-    value_ = input;
+  Config(const Config&) = delete;
+  Config& operator=(const Config&) = delete;
+  Config(Config&&) = delete;
+  Config& operator=(Config&&) = delete;
+
+  void set(const std::string& value) {
+    const std::lock_guard<std::mutex> lock(
+        mutex_);  // the instance is shared: protect it
+    value_ = value;
   }
 
-  const std::string& get_value() const {
-    LOG("");
+  std::string get() const {
+    const std::lock_guard<std::mutex> lock(mutex_);
     return value_;
-  };
+  }
 
  private:
-  /// @brief Default constructor should always be private
-  SingletonConfig() = default;
-  std::string value_;
+  Config() { LOG("  Config constructed (happens exactly once)"); }
+  ~Config() = default;
+
+  mutable std::mutex mutex_;
+  std::string value_{"default"};
 };
 
-void run() {
-  auto client_code = []() {
-    LOG(SingletonConfig::get_instance().get_value());
-  };
-
-  SingletonConfig& s1 = SingletonConfig::get_instance();
-  s1.init("0x001");
-  client_code();
-
-  // Singleton* s3 = new Singleton(); // ERROR
+void readSomewhereElse() {
+  // A far-away function reaches the same object without any parameter.
+  LOG_S("  readSomewhereElse() sees value = " << Config::instance().get());
 }
 
-}  // namespace singleton_pattern
+void run() {
+  LOG_SECTION("One instance, global access");
+  LOG("  first call to Config::instance():");
+  Config& config = Config::instance();
+  config.set("0x001");
+  readSomewhereElse();
+  // Config copy = Config::instance();  // error: copy constructor is deleted
+  // Config other;                     // error: constructor is private
+
+  LOG_SECTION("Every thread gets the same object");
+  std::vector<const Config*> seen(4, nullptr);
+  std::vector<std::thread> threads;
+  for (std::size_t i = 0; i < seen.size(); ++i) {
+    threads.emplace_back([&seen, i] { seen[i] = &Config::instance(); });
+  }
+  for (std::thread& thread : threads) {
+    thread.join();
+  }
+  bool all_same = true;
+  for (const Config* address : seen) {
+    all_same = all_same && address == &config;
+  }
+  LOG_S("  4 threads saw the same address: " << std::boolalpha << all_same);
+}
+
 }  // namespace
 
-class SingletonExample : public IExample {
- public:
-  std::string group() const override { return "dp/creational"; }
-  std::string name() const override { return "Singleton"; }
-  std::string description() const override {
-    return "Singleton Pattern Example";
-  }
-  void execute() override { singleton_pattern::run(); }
-};
-
-REGISTER_EXAMPLE(SingletonExample);
+LAB_EXAMPLE("Singleton",
+            "Meyers' singleton: one lazily created, thread-safe instance") {
+  run();
+}

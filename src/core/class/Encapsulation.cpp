@@ -1,82 +1,97 @@
-// Encapsulation means grouping data and the functions that use that data
-// inside a single unit, usually a class.
+// -----------------------------------------------------------------------------
+// Encapsulation
+//
+// Bundle data with the functions that use it, and hide the data behind a
+// small public interface.
+//
+// Benefits:
+//   1. Data hiding    : outside code cannot put the object into an invalid state.
+//   2. Invariants     : the class checks every change (e.g. balance >= 0).
+//   3. Modularity     : data and related functions live in one place.
+//   4. Flexibility    : the implementation can change without touching callers,
+//                       as long as the public interface stays the same.
+//
+// In C++: `private` / `protected` restrict access; `class` members are
+// private by default, `struct` members are public by default.
+//
+// Reference: https://www.learncpp.com/cpp-tutorial/the-benefits-of-data-hiding-encapsulation/
+// -----------------------------------------------------------------------------
 
-// Benefits of encapsulation:
-
-// 1. Data Hiding
-// The internal data of a class can be hidden from outside code.
-// Other code cannot directly modify it, which helps protect the object's state.
-
-// 2. Modularity
-// Data and related functions are organized in one place.
-// This makes the code easier to understand, maintain, and test.
-
-// 3. Flexibility and Maintainability
-// The internal implementation of a class can change without affecting
-// the code that uses it, as long as the public interface stays the same.
-
-// 4. Improved Security
-// Restricting access to internal data helps prevent unintended or incorrect use.
-
-// Implementation in C++:
-// Encapsulation is implemented using access specifiers such as
-// `private` and `protected` to restrict access to class members.
-// Public getter and setter functions can be used to access or modify
-// the internal data in a controlled way.
-
-#include <ExampleRegistry.h>
-#include <iostream>
+#include <stdexcept>
 #include <string>
+#include <utility>
+
+#include "lab/Example.h"
+#include "lab/Logger.h"
 
 namespace {
-class Person {
- private:
-  std::string name_;
-  int age_;
 
+/// Without encapsulation anyone can break the rules.
+struct OpenAccount {
+  std::string owner;
+  long balance_cents{0};  // nothing stops `balance_cents = -1'000'000;`
+};
+
+/// Invariant: the balance is never negative.
+class BankAccount {
  public:
-  Person(const std::string& name, int age) : name_(name), age_(age) {}
+  explicit BankAccount(std::string owner) : owner_{std::move(owner)} {}
 
-  std::string getName() const { return name_; }
-  int getAge() const { return age_; }
-
-  void setAge(int age) {
-    if (age >= 0) {
-      age_ = age;
+  void deposit(long cents) {
+    if (cents <= 0) {
+      throw std::invalid_argument("deposit must be positive");
     }
+    balance_cents_ += cents;
   }
 
-  void introduce() const {
-    std::cout << "Name: " << name_ << ", Age: " << age_ << '\n';
+  /// Returns false instead of letting the balance go negative.
+  bool withdraw(long cents) {
+    if (cents <= 0 || cents > balance_cents_) {
+      return false;
+    }
+    balance_cents_ -= cents;
+    return true;
   }
+
+  // Getters give read-only access. Returning `const std::string&` avoids a copy.
+  const std::string& owner() const { return owner_; }
+  long balance() const { return balance_cents_; }
+
+ private:
+  std::string owner_;
+  long balance_cents_{0};
 };
 
 void run() {
-  Person person("Alice", 25);
+  LOG_SECTION("Without encapsulation");
+  OpenAccount open{"Bob", 100};
+  open.balance_cents = -1'000'000;  // compiles - the object is now invalid
+  LOG_S(open.owner << "'s balance: " << open.balance_cents << " cents");
 
-  std::cout << "Initial state:\n";
-  person.introduce();
+  LOG_SECTION("With encapsulation");
+  BankAccount account{"Alice"};
+  account.deposit(2'500);
+  LOG_S(account.owner() << " deposited 2500, balance: " << account.balance());
 
-  std::cout << "\nUpdating age through setter:\n";
-  person.setAge(30);
-  person.introduce();
+  const bool ok = account.withdraw(1'000);
+  LOG_S("withdraw(1000) -> " << std::boolalpha << ok
+                             << ", balance: " << account.balance());
 
-  std::cout << "\nAccessing data through getters:\n";
-  std::cout << "Name: " << person.getName() << '\n';
-  std::cout << "Age: " << person.getAge() << '\n';
+  const bool too_much = account.withdraw(99'999);
+  LOG_S("withdraw(99999) -> " << std::boolalpha << too_much
+                              << ", balance unchanged: " << account.balance());
+
+  try {
+    account.deposit(-5);
+  } catch (const std::invalid_argument& e) {
+    LOG_S("deposit(-5) rejected: " << e.what());
+  }
+  // account.balance_cents_ = -1;  // error: 'balance_cents_' is private
 }
 
 }  // namespace
 
-class Encapsulation : public IExample {
- public:
-  std::string group() const override { return "core/class"; }
-  std::string name() const override { return "Encapsulation"; }
-  std::string description() const override {
-    return "Examples demonstrating encapsulation in C++";
-  }
-
-  void execute() override { run(); }
-};
-
-REGISTER_EXAMPLE(Encapsulation);
+LAB_EXAMPLE("Encapsulation",
+            "private data, class invariants, getters and setters") {
+  run();
+}

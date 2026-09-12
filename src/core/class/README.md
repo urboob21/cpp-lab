@@ -1,4 +1,19 @@
 # Classes
+
+| Example | Topic |
+|---|---|
+| `Encapsulation` | private data, invariants, getters and setters |
+| `Constructor` | initializer lists, default/delegating/copy/move, `explicit` |
+| `Destructor` | destruction order, virtual destructors, RAII, stack unwinding |
+| `ShallowDeepCopying` | why copying a pointer member is not copying the data |
+| `RuleOfThreeFiveZero` | which special member functions to write, and when to write none |
+| `Relationship` | composition, aggregation, association, dependency, nesting |
+| `Friend` | friend functions, friend members, friend classes |
+| `Binding` | early (static) vs late (virtual) binding, hiding vs overriding |
+| `VirtualBase` | the diamond problem and virtual inheritance |
+
+---
+# Classes
 - **A class** is a user-defined blueprint used to create objects. It defines the properties and behaviors that all objects of that type share.
 - **An object** is an instance of a class. It represents a real entity and contains actual values for the class’s attributes.
 - **An instance** is a specific object created from a class. (In practice, “object” and “instance” are often used interchangeably.)

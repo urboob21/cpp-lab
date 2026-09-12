@@ -51,7 +51,7 @@ __attribute__((section(".isr_vector"))) const void* vector_table[] = {
 /// Responsible for initializing the C runtime environment
 void Reset_Handler(void) {
   // Copy initialized data (.data) * from Flash to RAM.
-  uint32_t* src = &_sidata;
+  const uint32_t* src = &_sidata;
   uint32_t* dst = &_sdata;
 
   while (dst < &_edata) {

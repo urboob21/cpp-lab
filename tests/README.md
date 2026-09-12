@@ -1,3 +1,21 @@
+# Tests
+
+```bash
+ctest --test-dir build -L unit --output-on-failure      # the tests below
+ctest --test-dir build -L example                       # run every example once
+./build/bin/cpp_lab_project_unit_test --gtest_filter='Calculator*'
+```
+
+| Folder | Contents |
+|---|---|
+| `gtest_primer/` | tutorial tests: `TEST`, `TEST_F`, `TEST_P`, mocks and fakes |
+| `mock/` | the Turtle interface, a mock, a fake and the `Painter` under test |
+| `lab/` | tests for the lab framework: registry, command line, menu and runner |
+| `controller/` | tests for the PID controller |
+
+Every `*Test.cpp` below `tests/` is compiled automatically - just add a file.
+
+---
 # GoogleTest
 - Ref: https://google.github.io/googletest/
 - GoogleTest helps you write better C++ tests.

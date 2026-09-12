@@ -1,50 +1,128 @@
-#include <iostream>
+// -----------------------------------------------------------------------------
+// Unions and std::variant
+//
+//   - All members of a union share the same memory; its size is that of the
+//     largest member (plus padding).
+//   - Only the member written last is "active". Reading another member is
+//     allowed in C but UNDEFINED BEHAVIOR in C++.
+//   - To reinterpret bytes, use std::memcpy or std::bit_cast (C++20).
+//   - A union does not know which member is active. A "tagged union" stores
+//     that separately - std::variant (C++17) does it safely for you.
+//
+// Reference: https://en.cppreference.com/w/cpp/language/union
+// -----------------------------------------------------------------------------
+
+#include <bit>
+#include <cstdint>
 #include <string>
+#include <type_traits>
+#include <variant>
 
-// --- Union Definition ---
-// All members share the same memory
-union UnionDataType {
-  int intValue;
-  float floatValue;
-  char charValue;
+#include "lab/Example.h"
+#include "lab/Logger.h"
 
-  void printAll() const {
-    std::cout << "intValue = " << intValue << ", floatValue = " << floatValue
-              << ", charValue = " << charValue << "\n";
-  }
+namespace {
+
+union Number {
+  std::int32_t integer;
+  float real;
+  char letter;
 };
 
-// --- Demonstrate unique property ---
-void unionDemo() {
-  std::cout << "\n--- Union Unique Behavior ---\n";
+void rawUnion() {
+  LOG_SECTION("A plain union");
+  Number number{};
+  number.integer = 65;  // `integer` is now the active member
+  LOG_S("integer = " << number.integer);
 
-  UnionDataType u;
+  number.real = 3.14F;  // switches the active member to `real`
+  LOG_S("real    = " << number.real);
+  // Reading number.integer now would be undefined behavior in C++.
 
-  u.intValue = 65;
-  std::cout << "After assigning intValue = 65:\n";
-  u.printAll();  // Only intValue is meaningful; others show overwritten memory
-
-  u.floatValue = 3.14F;
-  std::cout << "After assigning floatValue = 3.14:\n";
-  u.printAll();  // Writing floatValue overwrites intValue
-
-  u.charValue = 'A';
-  std::cout << "After assigning charValue = 'A':\n";
-  u.printAll();  // Writing charValue overwrites both intValue and floatValue
-
-  std::cout << "Size of union = " << sizeof(UnionDataType) << " bytes\n";
-  std::cout << "Notice: Only one value is valid at a time.\n";
+  LOG_S("sizeof(Number) = " << sizeof(Number) << " (largest member)");
 }
 
-// --- Auto-run struct ---
-#include "ExampleRegistry.h"
+void typePunning() {
+  LOG_SECTION("Reading the bits of a float correctly");
+  const float real = 1.0F;
+  const auto bits = std::bit_cast<std::uint32_t>(real);  // C++20, well-defined
+  LOG_S("std::bit_cast<std::uint32_t>(1.0F) = 0x" << std::hex << bits
+                                                  << std::dec << " (IEEE-754)");
+}
 
-class CUnion : public IExample {
- public:
-  std::string group() const override { return "core/datatype"; }
-  std::string name() const override { return "Union"; }
-  std::string description() const override { return "Compound type: Union"; }
-  void execute() override { unionDemo(); }
+/// A hand-written tagged union: the tag says which member is active.
+struct TaggedNumber {
+  enum class Kind { kInteger, kReal } kind;
+  union {
+    std::int32_t integer;
+    float real;
+  };
 };
 
-REGISTER_EXAMPLE(CUnion);
+void describe(const TaggedNumber& number) {
+  if (number.kind == TaggedNumber::Kind::kInteger) {
+    LOG_S("  tagged: integer " << number.integer);
+  } else {
+    LOG_S("  tagged: real " << number.real);
+  }
+}
+
+using Value = std::variant<int, double, std::string>;
+
+void describe(const Value& value) {
+  // std::visit calls the lambda with the currently held alternative.
+  std::visit(
+      [](const auto& held) {
+        using T = std::decay_t<decltype(held)>;
+        if (std::is_same_v<T, int>) {
+          LOG_S("  variant holds int " << held);
+        } else if (std::is_same_v<T, double>) {
+          LOG_S("  variant holds double " << held);
+        } else {
+          LOG_S("  variant holds std::string \"" << held << "\"");
+        }
+      },
+      value);
+}
+
+void taggedUnions() {
+  LOG_SECTION("Tagged union vs std::variant");
+  TaggedNumber tagged{};
+  tagged.kind = TaggedNumber::Kind::kInteger;
+  tagged.integer = 7;
+  describe(tagged);
+  tagged.kind =
+      TaggedNumber::Kind::kReal;  // forgetting this line would be a bug
+  tagged.real = 2.5F;
+  describe(tagged);
+
+  Value value = 42;
+  describe(value);
+  value = 3.5;
+  describe(value);
+  value =
+      std::string("hello");  // std::string would not even fit in a plain union
+  describe(value);
+
+  if (const auto* text = std::get_if<std::string>(&value)) {
+    LOG_S("  std::get_if<std::string> -> " << *text);
+  }
+  try {
+    [[maybe_unused]] const int wrong = std::get<int>(value);
+  } catch (const std::bad_variant_access&) {
+    LOG("  std::get<int> on a string alternative throws "
+        "std::bad_variant_access");
+  }
+  LOG_S("  sizeof(Value) = " << sizeof(Value)
+                             << " (largest alternative + index)");
+}
+
+}  // namespace
+
+LAB_EXAMPLE("Union",
+            "unions, the active member rule, std::bit_cast, tagged unions and "
+            "std::variant") {
+  rawUnion();
+  typePunning();
+  taggedUnions();
+}

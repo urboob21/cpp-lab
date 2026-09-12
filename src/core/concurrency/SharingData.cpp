@@ -1,51 +1,90 @@
+// -----------------------------------------------------------------------------
+// Passing data to threads
+//
+//   - std::thread COPIES (or moves) its arguments into the new thread, even if
+//     the function takes a reference.
+//   - Use std::ref(x) to really pass a reference. The caller must then make
+//     sure `x` outlives the thread.
+//   - Lambdas choose explicitly: [x] copies, [&x] references.
+//   - thread_local gives every thread its own instance of a variable.
+//
+// Reference: https://en.cppreference.com/w/cpp/thread/thread/thread
+// -----------------------------------------------------------------------------
+
+#include <functional>
+#include <string>
 #include <thread>
-#include "ExampleRegistry.h"
-#include "Logger.h"
+
+#include "lab/Example.h"
+#include "lab/Logger.h"
 
 namespace {
 
-int global_variable = 9;
-
-// Pass-by-value
-void set_global(int arg) {
-  LOG("arg: " + std::to_string(arg));
-  global_variable = 100;
-  LOG("global_variable: " + std::to_string(global_variable));
+void incrementByValue(int value) {
+  ++value;  // changes the thread's own copy
+  LOG_S("  inside thread: value = " << value);
 }
 
-void set_local(int& arg) {
-  //   thread_local int thread_local_variable = 1;
-  LOG("arg: " + std::to_string(arg));
-  arg = 100;
-  LOG("arg: " + std::to_string(arg));
+void incrementByReference(int& value) {
+  ++value;  // changes the caller's variable
+  LOG_S("  inside thread: value = " << value);
 }
 
-void run() {
-  int local_variable = 10;
-  std::cout << "local: " << local_variable << '\n';
-  std::cout << "global: " << global_variable << '\n';
+void arguments() {
+  LOG_SECTION("Arguments are copied unless wrapped in std::ref");
+  int number = 10;
 
-  std::thread thread1(set_global, local_variable);
-  thread1.join();
+  std::thread by_value(incrementByValue, number);
+  by_value.join();
+  LOG_S("after incrementByValue:     number = " << number << "  (unchanged)");
 
-  std::cout << "local: " << local_variable << '\n';
-  std::cout << "global: " << global_variable << '\n';
-
-  std::thread thread2(set_local, std::ref(local_variable));
-  thread2.join();
-  std::cout << "local: " << local_variable << '\n';
+  // std::thread by_ref(incrementByReference, number);  // does not compile:
+  //   a copied int (an rvalue) cannot bind to `int&`
+  std::thread by_ref(incrementByReference, std::ref(number));
+  by_ref.join();
+  LOG_S("after incrementByReference: number = " << number << "  (changed)");
 }
+
+void lambdas() {
+  LOG_SECTION("Lambda captures");
+  std::string message = "hello";
+
+  std::thread copies([message]() mutable {  // own copy of message
+    message += " (modified copy)";
+    LOG_S("  copy in thread: " << message);
+  });
+  copies.join();
+  LOG_S("after capture by value:     message = " << message);
+
+  std::thread references([&message] { message += " world"; });
+  references.join();
+  LOG_S("after capture by reference: message = " << message);
+}
+
+thread_local int t_calls = 0;  // one independent counter per thread
+
+void countCalls(const char* name) {
+  for (int i = 0; i < 3; ++i) {
+    ++t_calls;
+  }
+  LOG_S("  " << name << " sees t_calls = " << t_calls);
+}
+
+void threadLocalStorage() {
+  LOG_SECTION("thread_local");
+  std::thread a(countCalls, "thread A");
+  std::thread b(countCalls, "thread B");
+  a.join();
+  b.join();
+  LOG_S("main thread sees t_calls = " << t_calls << "  (never touched here)");
+}
+
 }  // namespace
 
-class SharingData : public IExample {
- public:
-  std::string group() const override { return "core/concurrency"; }
-  std::string name() const override { return "SharingData"; }
-  std::string description() const override {
-    return "The examples for <thread> sharing data";
-  }
-
-  void execute() override { run(); }
-};
-
-REGISTER_EXAMPLE(SharingData);
+LAB_EXAMPLE(
+    "SharingData",
+    "passing arguments to threads: copies, std::ref, captures, thread_local") {
+  arguments();
+  lambdas();
+  threadLocalStorage();
+}

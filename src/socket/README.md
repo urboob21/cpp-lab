@@ -1,3 +1,18 @@
+# Sockets
+
+| Example | What it does |
+|---|---|
+| `simple_tcp/LoopbackEcho` | server thread + client in one process (runs unattended) |
+| `simple_tcp/SimpleTCPServer` | echo server on 127.0.0.1:8080, one client at a time `[interactive]` |
+| `simple_tcp/SimpleTCPClient` | sends the lines you type to that server `[interactive]` |
+| `multiple_client/MultiTCPServer` | echo server with one thread per client `[interactive]` |
+
+Try it: run the server example, then in another terminal `telnet localhost 8080` (or `nc localhost
+8080`). Lines are echoed back; `Q` disconnects, `SHUTDOWN` stops the server.
+
+The classes are `net::TCPServer` and `net::TCPClient` in `simple_tcp/`.
+
+---
 ## Socket
 - A `socket` is a mechanism that allows programs to communicate with other programs using standard Unix file descriptors.
 

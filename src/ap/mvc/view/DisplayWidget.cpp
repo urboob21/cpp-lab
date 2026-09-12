@@ -18,9 +18,11 @@ DisplayWidget::DisplayWidget(const std::string& title, const std::string& color,
 }
 
 void DisplayWidget::updateLabel(const std::string& text) {
-  // Use HTML markup to change text color
-  std::string markup = "<span foreground='" + color_ +
-                       "' size='x-large' weight='bold'>" + text + "</span>";
+  // Pango markup changes color and size. The text comes from the user, so it
+  // must be escaped: a '<' or '&' would otherwise break the markup.
+  const std::string markup = "<span foreground='" + color_ +
+                             "' size='x-large' weight='bold'>" +
+                             Glib::Markup::escape_text(text).raw() + "</span>";
   labelData_.set_markup(markup);
 }
 

@@ -1,24 +1,29 @@
 #pragma once
+
+#include <mutex>
 #include <thread>
 #include <vector>
+
 #include "../simple_tcp/TCPServer.h"
-#include "IExample.h"
 
-class MultiTCPServer : public TCPServer, public IExample {
+namespace net {
+
+/// Echo server that serves every client on its own thread, so several clients
+/// can be connected at the same time ("thread per connection").
+class MultiTCPServer : public TCPServer {
  public:
-  std::string group() const override { return "socket/tcp"; }
-
-  std::string name() const override { return "MultiTCPServer"; }
-
-  std::string description() const override {
-    return "Multi TCP server listening on port 8080.\nRun `telnet localhost "
-           "8080` to connect.";
-  }
-
-  void execute() override { run(); }
+  using TCPServer::TCPServer;
+  ~MultiTCPServer() override;
 
  protected:
   void acceptLoop() override;
-  void run();
+
+ private:
+  void disconnectAllClients();
+
   std::vector<std::thread> client_threads_;
+  std::mutex clients_mutex_;
+  std::vector<int> client_fds_;  // sockets of the clients still connected
 };
+
+}  // namespace net

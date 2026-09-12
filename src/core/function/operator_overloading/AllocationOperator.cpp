@@ -1,99 +1,106 @@
-// cppcheck-suppress-file [functionConst]
+// -----------------------------------------------------------------------------
+// Overloading operator new and operator delete
+//
+// `new T` does two things: calls `operator new(sizeof(T))` to get raw memory,
+// then runs T's constructor in it. `delete p` runs the destructor, then calls
+// `operator delete(p)`. Only the memory part can be customized.
+//
+//   - Class-specific overloads (static members) affect only that class:
+//     logging, memory pools, alignment, debugging leaks.
+//   - Overload new/delete AND new[]/delete[] together.
+//   - operator new must throw std::bad_alloc on failure (or be nothrow).
+//   - Placement new `new (buffer) T` constructs in memory you already own.
+//
+// Reference: https://en.cppreference.com/w/cpp/memory/new/operator_new
+// -----------------------------------------------------------------------------
 
-// Overloading operator new, delete
-// Debug
+#include <cstddef>
+#include <memory>
+#include <new>
 
-#include <iostream>
-#include "ExampleRegistry.h"
+#include "lab/Example.h"
+#include "lab/Logger.h"
+
 namespace {
 
-class IntCollection {
- private:
-  int m_data_[3]{10, 20, 30};
-
+class Tracked {
  public:
-  class Iterator {
-   private:
-    int* m_ptr_;
+  Tracked() { LOG("    Tracked()   constructor"); }
+  ~Tracked() { LOG("    ~Tracked()  destructor"); }
+  Tracked(const Tracked&) = delete;
+  Tracked& operator=(const Tracked&) = delete;
 
-   public:
-    explicit Iterator(int* ptr) : m_ptr_(ptr) {}
-
-    int& operator*() { return *m_ptr_; }
-
-    int* operator->() { return m_ptr_; }
-
-    Iterator& operator++() {
-      ++m_ptr_;
-      return *this;
-    }
-
-    bool operator!=(const Iterator& other) const {
-      return m_ptr_ != other.m_ptr_;
-    }
-  };
-
-  Iterator begin() { return Iterator(m_data_); }
-  Iterator end() { return Iterator(m_data_ + 3); }
-
-  // int* a = new int;
-  void* operator new(size_t size) {
-    std::cout << "void* operator new(size_t size)\n";
-    // void* p = ::operator new(size);
-    void* p = malloc(size);
-    if (!p)
-      throw std::bad_alloc();
-    return p;
+  static void* operator new(std::size_t size) {
+    LOG_S("    operator new(" << size << ")");
+    return ::operator new(size);  // delegate to the global allocator
   }
 
-  // delete a
-  void operator delete(void* p) {
-    std::cout << "void operator delete(void* p)\n";
-    free(p);
+  static void operator delete(void* memory) noexcept {
+    LOG("    operator delete");
+    ::operator delete(memory);
   }
 
-  // int* as = new int[100]
-  void* operator new[](size_t size) {
-    std::cout << "void* operator new[](size_t size)\n";
-    void* p = malloc(size);
-    if (!p)
-      throw std::bad_alloc();
-    return p;
+  static void* operator new[](std::size_t size) {
+    LOG_S("    operator new[](" << size
+                                << ")  (may include bookkeeping bytes)");
+    return ::operator new[](size);
   }
 
-  // delete []as;
-  void operator delete[](void* p) {
-    std::cout << "void operator delete[](void* p)\n";
-    free(p);
+  static void operator delete[](void* memory) noexcept {
+    LOG("    operator delete[]");
+    ::operator delete[](memory);
   }
+
+ private:
+  int data_[3]{10, 20, 30};
 };
 
-void run() {
-  auto* col = new IntCollection;
+void singleObject() {
+  LOG_SECTION("new / delete: memory first, then constructor");
+  LOG("  new Tracked:");
+  auto* object = new Tracked;
+  LOG("  delete object:");
+  delete object;
 
-  for (auto it = col->begin(); it != col->end(); ++it) {
-    std::cout << *it << '\n';
-  }
-
-  delete col;
-
-  auto* cols = new IntCollection[10];
-  for (int i = 0; i < 10; ++i) {
-    for (auto it = cols[i].begin(); it != cols[i].end(); ++it) {
-      std::cout << *it << '\n';
-    }
-  }
-  delete[] cols;
+  LOG("  std::make_unique uses the class operator new as well:");
+  auto owned = std::make_unique<Tracked>();
+  owned.reset();
 }
+
+void arrays() {
+  LOG_SECTION("new[] / delete[]");
+  LOG_S("  sizeof(Tracked) = " << sizeof(Tracked) << ", allocating 3:");
+  auto* objects = new Tracked[3];
+  LOG("  delete[] objects:");
+  delete[] objects;  // mixing new[] with delete (or new with delete[]) is UB
+}
+
+void placementNew() {
+  LOG_SECTION("Placement new: construct in existing memory");
+  alignas(Tracked) std::byte buffer[sizeof(Tracked)];
+  LOG("  new (buffer) Tracked  -> no allocation, only the constructor runs:");
+  Tracked* object =
+      ::new (buffer) Tracked;  // ::new bypasses the class overload
+  LOG("  object->~Tracked()     -> call the destructor manually, never "
+      "delete:");
+  object->~Tracked();
+}
+
+void nothrowNew() {
+  LOG_SECTION("std::nothrow");
+  // The nothrow form returns nullptr instead of throwing std::bad_alloc.
+  const std::unique_ptr<int[]> numbers(new (std::nothrow) int[16]);
+  LOG_S("  new (std::nothrow) int[16] -> "
+        << (numbers ? "allocated" : "nullptr"));
+}
+
 }  // namespace
 
-class AllocationOperator : public IExample {
- public:
-  std::string group() const override { return "core/overloading_operator"; }
-  std::string name() const override { return "AllocationOperator"; }
-  std::string description() const override { return ""; }
-
-  void execute() override { run(); }
-};
-
-REGISTER_EXAMPLE(AllocationOperator);
+LAB_EXAMPLE(
+    "AllocationOperator",
+    "class-specific operator new/delete, new[]/delete[], placement new") {
+  singleObject();
+  arrays();
+  placementNew();
+  nothrowNew();
+}

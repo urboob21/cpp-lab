@@ -1,7 +1,7 @@
 #pragma once
 #include <gtkmm.h>
-#include "../controller/Controller.h"
 #include "../IObserver.h"
+#include "../controller/Controller.h"
 
 class EditorWidget : public Gtk::Box, public IObserver {
  public:

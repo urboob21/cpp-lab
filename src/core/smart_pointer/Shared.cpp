@@ -1,93 +1,124 @@
-#include <iostream>
+// -----------------------------------------------------------------------------
+// std::shared_ptr - shared ownership
+//
+//   auto p = std::make_shared<T>(args...);
+//
+//   - Several shared_ptrs own the same object; a reference count in a
+//     "control block" tracks them. The object is deleted with the last owner.
+//   - Copying increments the count (atomically - thread-safe count, NOT a
+//     thread-safe object). Moving transfers without touching the count.
+//   - make_shared allocates the object and control block together.
+//   - shared_ptr<const T> shares read-only access.
+//   - Pitfall: two objects owning each other form a cycle and are never freed
+//     (see Weak.cpp). Prefer unique_ptr unless ownership is really shared.
+//
+// Reference: https://en.cppreference.com/w/cpp/memory/shared_ptr
+// -----------------------------------------------------------------------------
+
 #include <memory>
 #include <string>
+#include <utility>
+
+#include "lab/Example.h"
+#include "lab/Logger.h"
+
 namespace {
-// Shared resource rather than copy to optimize memory
+
 struct AppConfig {
   std::string server;
   int port;
 
-  AppConfig(std::string s, int p) : server(std::move(s)), port(p) {
-    std::cout << "Config loaded\n";
+  AppConfig(std::string server_name, int port_number)
+      : server{std::move(server_name)}, port{port_number} {
+    LOG("  AppConfig loaded");
   }
-
-  void setPort(int p) { port = p; }
-
-  ~AppConfig() { std::cout << "Config destroyed\n"; }
+  ~AppConfig() { LOG("  AppConfig destroyed (last owner gone)"); }
+  AppConfig(const AppConfig&) = delete;
+  AppConfig& operator=(const AppConfig&) = delete;
 };
 
-// Module A
+/// Module A: shares the configuration read-only.
 class NetworkManager {
  public:
-  explicit NetworkManager(std::shared_ptr<const AppConfig> cfg)
-      : config_(std::move(cfg)) {}
-
+  explicit NetworkManager(std::shared_ptr<const AppConfig> config)
+      : config_{std::move(config)} {}
   void connect() const {
-    std::cout << "Connecting to " << config_->server << ":" << config_->port
-              << "\n";
+    LOG_S("  connecting to " << config_->server << ':' << config_->port);
   }
 
  private:
-  // const means we cannot modify config at this point
-  std::shared_ptr<const AppConfig> config_;
+  std::shared_ptr<const AppConfig>
+      config_;  // cannot modify the config through this
 };
 
-// Module B
-class Logger {
+/// Module B: shares the same configuration.
+class RequestLogger {
  public:
-  explicit Logger(std::shared_ptr<const AppConfig> cfg)
-      : config_(std::move(cfg)) {}
-
-  void log_start() const {
-    std::cout << "Logging enabled for " << config_->server << "\n";
-  }
-
-  ~Logger() { std::cout << "Logger destroyed\n"; }
+  explicit RequestLogger(std::shared_ptr<const AppConfig> config)
+      : config_{std::move(config)} {}
+  void start() const { LOG_S("  logging requests for " << config_->server); }
 
  private:
   std::shared_ptr<const AppConfig> config_;
 };
 
-void run() {
+void sharedOwnership() {
+  LOG_SECTION("Several owners, one object");
+  auto config = std::make_shared<AppConfig>("test.server.com", 80);
+  LOG_S("  use_count after make_shared: " << config.use_count());
   {
-    // auto config = std::make_shared<AppConfig>("api.example.com", 443);
-    std::shared_ptr<AppConfig> config =
-        std::make_shared<AppConfig>("test.server.com", 80);
-
+    const NetworkManager network{config};
     {
-      NetworkManager net(config);
+      const RequestLogger logger{config};
+      LOG_S("  use_count with two modules:  " << config.use_count());
+      network.connect();
+      logger.start();
 
-      {
-        Logger logger(config);
-
-        net.connect();
-        logger.log_start();
-
-        std::cout << "The number of owners (shared_ptr) - use_count: "
-                  << config.use_count() << "\n";
-        config->setPort(8080);
-        net.connect();
-        logger.log_start();
-      }
-
-      std::cout << "The number of owners (shared_ptr) - use_count: "
-                << config.use_count() << "\n";
+      config->port = 8080;  // the owner with non-const access changes it...
+      network.connect();    // ...and every module sees the change
     }
-    std::cout << "The number of owners (shared_ptr) - use_count: "
-              << config.use_count() << "\n";
+    LOG_S("  logger gone, use_count:     " << config.use_count());
   }
+  LOG_S("  network gone, use_count:    " << config.use_count());
+
+  const std::shared_ptr<AppConfig> moved =
+      std::move(config);  // no count change
+  LOG_S("  after std::move: config is "
+        << (config ? "set" : "empty")
+        << ", moved.use_count() = " << moved.use_count());
+  LOG("  -- leaving the function --");
+}
+
+class Session : public std::enable_shared_from_this<Session> {
+ public:
+  /// Hands out another owner of *this. Never do std::shared_ptr<Session>(this):
+  /// that would create a second, independent control block (double delete).
+  std::shared_ptr<Session> self() { return shared_from_this(); }
+  ~Session() { LOG("  Session destroyed"); }
+};
+
+void sharedFromThis() {
+  LOG_SECTION("enable_shared_from_this");
+  const auto session = std::make_shared<Session>();
+  [[maybe_unused]] const std::shared_ptr<Session> another = session->self();
+  LOG_S("  use_count = " << session.use_count() << " (same control block)");
+}
+
+void customDeleter() {
+  LOG_SECTION("Custom deleter");
+  const std::shared_ptr<int> value(new int{42}, [](const int* pointer) {
+    LOG_S("  custom deleter frees " << *pointer);
+    delete pointer;
+  });
+  LOG_S("  *value = " << *value);
 }
 
 }  // namespace
 
-#include "ExampleRegistry.h"
-
-class Shared : public IExample {
- public:
-  std::string group() const override { return "core/smart_pointer"; }
-  std::string name() const override { return "Shared"; }
-  std::string description() const override { return "Shared Pointer Example"; }
-  void execute() override { run(); }
-};
-
-REGISTER_EXAMPLE(Shared);
+LAB_EXAMPLE(
+    "Shared",
+    "std::shared_ptr: reference counting, const sharing, shared_from_this") {
+  sharedOwnership();
+  sharedFromThis();
+  customDeleter();
+}

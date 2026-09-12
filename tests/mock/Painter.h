@@ -1,11 +1,14 @@
 #pragma once
+
 #include "Turtle.h"
 
+/// Code under test: depends only on the Turtle interface, so tests can pass a
+/// mock or a fake instead of a real drawing turtle.
 class Painter {
-public:
+ public:
   explicit Painter(Turtle& turtle) : turtle_(turtle) {}
 
-  void DrawSquare(int size) {
+  void DrawSquare(int size) const {
     turtle_.PenDown();
     for (int i = 0; i < 4; ++i) {
       turtle_.Forward(size);
@@ -14,6 +17,6 @@ public:
     turtle_.PenUp();
   }
 
-private:
+ private:
   Turtle& turtle_;
 };

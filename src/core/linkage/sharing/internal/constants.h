@@ -1,21 +1,20 @@
-
-// global constants as internal variables:
+// Global constants as internal variables
+//
 // Advantages:
-//     Works prior to C++16.
-//     Can be used in constant expressions in any translation unit that includes them.
+//     Works before C++17.
+//     Usable in constant expressions in every file that includes the header.
 // Downsides:
-//     Changing anything in the header file requires recompiling files including the header.
-//     Each translation unit including the header gets its own copy of the variable.
+//     Every file that includes the header gets its OWN copy of each constant.
+//     Changing a value recompiles every file that includes the header.
 
-#ifndef INCONSTANTS_H
-#define INCONSTANTS_H
+#ifndef CPPLAB_INTERNAL_CONSTANTS_H
+#define CPPLAB_INTERNAL_CONSTANTS_H
 
-// Define your own namespace to hold constants
 namespace internal_constants {
-// Global constants have internal linkage by default
+// const/constexpr variables at namespace scope have internal linkage by default.
 constexpr double kPi{3.14159};
 constexpr double kAvogadro{6.0221413e23};
 constexpr double kMyGravity{9.2};  // m/s^2 -- gravity is light on this planet
-                                   // ... other related constants
 }  // namespace internal_constants
-#endif
+
+#endif  // CPPLAB_INTERNAL_CONSTANTS_H

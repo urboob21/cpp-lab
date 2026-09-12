@@ -1,66 +1,86 @@
-// cppcheck-suppress-file[]
+// -----------------------------------------------------------------------------
+// Overloading operator<< and operator>> for streams
+//
+//   std::ostream& operator<<(std::ostream& out, const T& value);
+//   std::istream& operator>>(std::istream& in, T& value);
+//
+//   - They must be NON-members: the left operand is the stream, a class we
+//     cannot modify. Make them friends if they need private members.
+//   - Return the stream so calls chain: std::cout << a << b.
+//   - operator>> should set failbit on malformed input and leave the target
+//     unchanged, so `if (in >> value)` works like for built-in types.
+//
+// The same operators work with std::cout/std::cin, files and string streams;
+// string streams are used below so the example needs no keyboard input.
+//
+// Reference: https://en.cppreference.com/w/cpp/language/operators#Stream_extraction_and_insertion
+// -----------------------------------------------------------------------------
 
-// operator>> and operator<<
-#include "ExampleRegistry.h"
-#include "Logger.h"
+#include <istream>
+#include <ostream>
+#include <sstream>
+
+#include "lab/Example.h"
+#include "lab/Logger.h"
 
 namespace {
-class Cents {
- public:
-  explicit Cents(int cents) : cents_{cents} {}
-  int getCents() const { return cents_; }
 
-  //   // We won’t be able to use a member overload if the left operand is either not a class (e.g. int),
-  //   // or it is a class that we can’t modify (e.g. std::ostream).
-  //   // _cents << std::cout; work
-  //   // std::cout << _cents; error
-  //   std::ostream& operator<<(std::ostream& out) {
-  //     out << m_cents;
-  //     return out;
-  //   }
+class Point {
+ public:
+  Point() = default;
+  Point(int x, int y) : x_{x}, y_{y} {}
+
+  friend std::ostream& operator<<(std::ostream& out, const Point& point);
+  friend std::istream& operator>>(std::istream& in, Point& point);
 
  private:
-  int cents_{};
+  int x_{0};
+  int y_{0};
 };
 
-/// @brief Write obj to stream
-std::ostream& operator<<(std::ostream& out, const Cents& c) {
-  LOG("");
-  out << c.getCents();
-  return out;
+/// Writes "(x, y)".
+std::ostream& operator<<(std::ostream& out, const Point& point) {
+  return out << '(' << point.x_ << ", " << point.y_ << ')';
 }
 
-/// @brief Read obj from stream
-std::istream& operator>>(std::istream& in, Cents& c) {
-  LOG("");
-  int cents{};
-  in >> cents;
-  c = in ? Cents{cents} : Cents{0};
+/// Reads "(x, y)". On malformed input sets failbit and keeps `point` unchanged.
+std::istream& operator>>(std::istream& in, Point& point) {
+  char open = 0;
+  char comma = 0;
+  char close = 0;
+  int x = 0;
+  int y = 0;
+  if (in >> open >> x >> comma >> y >> close && open == '(' && comma == ',' &&
+      close == ')') {
+    point = Point{x, y};
+  } else {
+    in.setstate(std::ios::failbit);
+  }
   return in;
 }
 
 void run() {
-  Cents c1{25};
-  // out >>
-  std::cout << c1 << "\n";
+  LOG_SECTION("operator<<");
+  const Point origin;
+  const Point target{3, -4};
+  std::ostringstream out;
+  out << "origin " << origin << " -> target " << target;  // chained calls
+  LOG(out.str());
 
-  // in >>
-  std::cin >> c1;
-  std::cout << c1 << "\n";
-
-  // clearing lefover newline
-  std::string line;
-  std::getline(std::cin, line);
+  LOG_SECTION("operator>>");
+  std::istringstream input("(10, 20) (7,8) (oops)");
+  Point point;
+  while (input >> point) {
+    LOG_S("parsed " << point);
+  }
+  LOG_S("stopped at malformed input, fail() = "
+        << std::boolalpha << input.fail() << ", point kept its last value "
+        << point);
 }
+
 }  // namespace
 
-class StreamOperator : public IExample {
- public:
-  std::string group() const override { return "core/overloading_operator"; }
-  std::string name() const override { return "StreamOperator"; }
-  std::string description() const override { return ""; }
-
-  void execute() override { run(); }
-};
-
-REGISTER_EXAMPLE(StreamOperator);
+LAB_EXAMPLE("StreamOperator",
+            "operator<< and operator>> for a custom type, input validation") {
+  run();
+}

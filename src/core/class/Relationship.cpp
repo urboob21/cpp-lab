@@ -1,158 +1,237 @@
-// cppcheck-suppress-file [functionStatic]
-#include <iostream>
-#include "ExampleRegistry.h"
+// -----------------------------------------------------------------------------
+// Relationships between classes (see README.md in this folder for UML)
+//
+//   Composition  "part-of"    : the whole owns the part; they live and die together
+//   Aggregation  "has-a"      : the whole uses a part it does not own
+//   Association  "uses-a"     : two otherwise independent objects collaborate
+//   Dependency   "depends-on" : a class uses another only temporarily
+//   Container    "holds many" : stores values (composition) or pointers (aggregation)
+//   Nested class               : a type defined inside another type
+//
+// Reference: https://www.learncpp.com/cpp-tutorial/object-relationships/
+// -----------------------------------------------------------------------------
+
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "lab/Example.h"
+#include "lab/Logger.h"
 
 namespace {
 
 namespace composition {
-// Engine is a part of the Car
-// Engine is managed by the Car
+
 class Engine {
  public:
-  Engine() { std::cout << "Engine created\n"; }
-  ~Engine() { std::cout << "Engine destroyed\n"; }
+  Engine() { LOG("  Engine created"); }
+  ~Engine() { LOG("  Engine destroyed"); }
+  Engine(const Engine&) = delete;
+  Engine& operator=(const Engine&) = delete;
 };
 
 class Car {
  public:
-  Car() { std::cout << "Car created\n"; }
-  ~Car() { std::cout << "Car destroyed\n"; }
+  Car() { LOG("  Car created"); }
+  ~Car() { LOG("  Car destroyed"); }
+  Car(const Car&) = delete;
+  Car& operator=(const Car&) = delete;
 
  private:
-  Engine engine_;  // composition
+  Engine engine_;  // composition: created and destroyed together with the Car
 };
 
 void run() {
-  std::cout << "\n---Composition---\n";
-  Car car;
+  LOG_SECTION("Composition (part-of)");
+  const Car car;
+  LOG("-- leaving scope: the Car takes its Engine with it --");
 }
-};  // namespace composition
 
-namespace aggregations {
-// Teacher is a part of the Department
-// Teacher can belong to one or more Department
-// Department does not managed Patient existence
+}  // namespace composition
+
+namespace aggregation {
+
 class Teacher {
  public:
-  std::string name;
-  explicit Teacher(const std::string& n) : name(n) {
-    std::cout << "Teacher created: " << name << "\n";
+  explicit Teacher(std::string name) : name_{std::move(name)} {
+    LOG_S("  Teacher " << name_ << " created");
   }
+  ~Teacher() { LOG_S("  Teacher " << name_ << " destroyed"); }
+  Teacher(const Teacher&) = delete;
+  Teacher& operator=(const Teacher&) = delete;
 
-  ~Teacher() { std::cout << "Teacher destroyed: " << name << "\n"; }
+  const std::string& name() const { return name_; }
+
+ private:
+  std::string name_;
 };
 
 class Department {
- private:
-  Teacher* teacher_;  // aggregation
-
  public:
-  explicit Department(Teacher* t) : teacher_(t) {
-    std::cout << "Department created \n";
+  explicit Department(std::string name, const Teacher& teacher)
+      : name_{std::move(name)}, teacher_{&teacher} {
+    LOG_S("  Department " << name_ << " created with " << teacher_->name());
   }
+  ~Department() { LOG_S("  Department " << name_ << " destroyed"); }
+  Department(const Department&) = delete;
+  Department& operator=(const Department&) = delete;
 
-  ~Department() { std::cout << "Department destroyed \n"; }
+ private:
+  std::string name_;
+  const Teacher* teacher_;  // aggregation: points to a Teacher it does NOT own
 };
 
 void run() {
-  std::cout << "\n---Aggregations---\n";
-  Teacher t{"Mr.A"};
+  LOG_SECTION("Aggregation (has-a)");
+  const Teacher teacher{"Mr. A"};
   {
-    Department dep1{&t};
-    Department dep2{&t};
+    const Department math{"Math", teacher};
+    const Department physics{"Physics",
+                             teacher};  // one teacher, two departments
+    LOG("-- departments close --");
   }
+  LOG("-- the teacher still exists --");
 }
-};  // namespace aggregations
 
-// Doctor uses Patient
-// Doctor does not managed Patient existence
-namespace associations {
+}  // namespace aggregation
+
+namespace association {
+
 class Patient {
  public:
-  Patient() { std::cout << "Patient created \n"; }
-  ~Patient() { std::cout << "Patient destroyed \n"; }
-  std::string name;
+  explicit Patient(std::string name) : name_{std::move(name)} {}
+  const std::string& name() const { return name_; }
+
+ private:
+  std::string name_;
 };
 
 class Doctor {
  public:
-  Doctor() { std::cout << "Doctor created \n"; }
-  ~Doctor() { std::cout << "Doctor destroyed \n"; }
-  void treat(const Patient& p) { std::cout << "Treating " << p.name << "\n"; }
+  // The Doctor neither owns nor stores the Patient; they only interact.
+  void treat(const Patient& patient) const {
+    LOG_S("  Treating " << patient.name());
+  }
 };
 
 void run() {
-  std::cout << "\n---Associations---\n";
-  Patient p{};
-  Doctor d{};
-  d.treat(p);
+  LOG_SECTION("Association (uses-a)");
+  const Doctor doctor;
+  const Patient alice{"Alice"};
+  const Patient bob{"Bob"};
+  doctor.treat(alice);
+  doctor.treat(bob);
 }
-}  // namespace associations
 
-// Car creates and uses Logger to log
+}  // namespace association
+
 namespace dependency {
-class Logger {
- public:
-  Logger() { std::cout << "Logger created \n"; }
-  ~Logger() { std::cout << "Logger destroyed \n"; }
 
-  void log(const std::string& msg) { std::cout << msg << std::endl; }
+class FileLogger {
+ public:
+  void write(const std::string& message) const {
+    LOG_S("  [file] " << message);
+  }
 };
 
 class Car {
  public:
-  Car() { std::cout << "Car created \n"; }
-  ~Car() { std::cout << "Car destroyed \n"; }
-
-  void start() {
-    std::cout << "Car started\n";
-    Logger logger;  // dependency
-    logger.log("Log Car started");
+  void start() const {
+    const FileLogger logger;  // dependency: only needed during this call
+    logger.write("Car started");
   }
 };
+
 void run() {
-  std::cout << "\n---Dependency---\n";
-  Car car{};
+  LOG_SECTION("Dependency (depends-on)");
+  const Car car;
   car.start();
 }
+
 }  // namespace dependency
 
 namespace container {
-// class Library1 {
-//  private:
-//   std::vector<std::string> books;  // copy values
-// };
 
-// class Library2 {
-//  private:
-//   std::vector<Teacher*> teachers;  // store pointers
-// };
+class Library {
+ public:
+  void addBook(std::string title) { books_.push_back(std::move(title)); }
+  std::size_t size() const { return books_.size(); }
+
+ private:
+  std::vector<std::string> books_;  // stores the values themselves
+};
+
+class School {
+ public:
+  void hire(const aggregation::Teacher& teacher) {
+    teachers_.push_back(&teacher);
+  }
+  void printStaff() const {
+    for (const aggregation::Teacher* teacher : teachers_) {
+      LOG_S("  staff: " << teacher->name());
+    }
+  }
+
+ private:
+  std::vector<const aggregation::Teacher*>
+      teachers_;  // stores non-owning pointers
+};
+
+void run() {
+  LOG_SECTION("Container");
+  Library library;
+  library.addBook("The C++ Programming Language");
+  library.addBook("Effective Modern C++");
+  LOG_S("  library holds " << library.size() << " books (by value)");
+
+  const aggregation::Teacher teacher_b{"Ms. B"};
+  const aggregation::Teacher teacher_c{"Mr. C"};
+  School school;
+  school.hire(teacher_b);
+  school.hire(teacher_c);
+  school.printStaff();
+}
+
 }  // namespace container
 
-namespace inner_class {
+namespace nested {
+
 class Car {
  public:
+  /// Nested class: a type that only makes sense in the context of Car.
   class Engine {
    public:
-    void start();
+    void start() const { LOG("  Car::Engine::start"); }
   };
+
+  void drive() const {
+    engine_.start();
+    LOG("  Car::drive");
+  }
+
+ private:
+  Engine engine_;
 };
-}  // namespace inner_class
+
+void run() {
+  LOG_SECTION("Nested (inner) class");
+  const Car car;
+  car.drive();
+  const Car::Engine spare;  // usable from outside because Engine is public
+  spare.start();
+}
+
+}  // namespace nested
+
 }  // namespace
 
-class Relationship : public IExample {
- public:
-  std::string group() const override { return "core/class"; };
-
-  std::string name() const override { return "Relationship"; };
-  std::string description() const override { return "Relationship examples"; };
-
-  void execute() override {
-    composition::run();
-    aggregations::run();
-    associations::run();
-    dependency::run();
-  };
-};
-
-REGISTER_EXAMPLE(Relationship);
+LAB_EXAMPLE("Relationship",
+            "composition, aggregation, association, dependency, containers, "
+            "nested classes") {
+  composition::run();
+  aggregation::run();
+  association::run();
+  dependency::run();
+  container::run();
+  nested::run();
+}
