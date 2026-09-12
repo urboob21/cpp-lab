@@ -104,6 +104,19 @@ the problem the pattern solves; several end with the modern C++ alternative (`st
 | `./build/bin/demo_dlopen` | loading a plugin at run time |
 | `src/embedded` | a firmware image booting in QEMU |
 
+## Stage 9 - what is not written yet
+
+Examples marked `[draft]` in the menu are scaffolds: the file lists what the topic should show and
+prints that outline, but the code is missing. Templates (`core/template/*`), move semantics,
+coroutines, `std::expected` and the rest of the open topics are listed per standard in
+[cpp-standards-coverage.md](cpp-standards-coverage.md).
+
+```bash
+./build/bin/cpp_lab_project --list | grep draft
+```
+
+Filling one in is the best exercise the lab has to offer.
+
 ---
 When something surprises you, change the example and rebuild - that is what the lab is for.
 Then write your own: see [adding-examples.md](adding-examples.md).

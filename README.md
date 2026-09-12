@@ -33,7 +33,7 @@ src/
   lab/         framework implementation
   main.cpp     entry point: command line and menu
   core/        C++ language and standard library examples (incl. templates)
-  dp/          design patterns (behavioral, creational, structural)
+  dp/          design patterns (behavioral, creational, structural) and C++ idioms
   controller/  control algorithms (PID)
   socket/      POSIX TCP sockets
   ap/          architecture patterns (MVC, MVVM) as GTK4 apps
