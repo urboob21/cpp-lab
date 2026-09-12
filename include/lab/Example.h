@@ -22,6 +22,10 @@
 //   LAB_EXAMPLE("EchoServer", "TCP echo server on port 8080", lab::kInteractive)
 //   { ... }
 //
+// - Pass lab::kDraft while an example is still a scaffold: a file that lists
+//   what the topic should show but has no code yet. It runs (it prints its
+//   outline) and the menu marks it [draft]. Remove the flag once it is done.
+//
 // How it works: the macro declares a file-local function, registers its
 // address in lab::Registry from a static initializer (which runs before
 // main()), and then lets the braces that follow become the function body.

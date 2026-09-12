@@ -4,6 +4,7 @@
 |-----------------|------------------------------------------------------------------|
 | `BasicHandle`   | try/catch/throw, custom exceptions, catch order, rethrow, nested exceptions |
 | `ThrowNoexcept` | `noexcept` specifier and operator, `std::terminate`, `noexcept` moves in `std::vector` |
+| `ErrorCode` | std::error_code, std::system_error, errno, and the exception safety guarantees *(draft)* |
 
 ## 1. The mechanism
 

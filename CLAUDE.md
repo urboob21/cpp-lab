@@ -51,6 +51,14 @@ sanitizer build.
   print the bare message.
 - `lab/version.h` is generated from `include/lab/version.h.in`.
 
+## Drafts
+
+`LAB_EXAMPLE(name, description, lab::kDraft)` marks a scaffold: the header comment lists what the
+example should teach, `outline()` prints that list, and the menu shows `[draft]`. They still build
+and run as ctest smoke tests. `docs/cpp-standards-coverage.md` is the audit of C++11 - C++23
+against the lab and tracks every open draft; update it (and the folder README) when a draft is
+finished and `lab::kDraft` is removed.
+
 ## Adding an example
 
 ```bash

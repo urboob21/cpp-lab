@@ -46,6 +46,17 @@ bool isValidName(std::string_view name) {
 
 }  // namespace
 
+std::string Example::labels() const {
+  std::string text;
+  if (isDraft()) {
+    text += "  [draft]";
+  }
+  if (isInteractive()) {
+    text += "  [interactive]";
+  }
+  return text;
+}
+
 namespace detail {
 
 std::string relativeSourcePath(std::string_view file,

@@ -5,11 +5,17 @@
 | `sequence/Array` | `std::array` - fixed size, on the stack |
 | `sequence/Vector` | `std::vector` - dynamic array, growth and invalidation |
 | `sequence/Deque` | `std::deque` - fast at both ends, stable references |
+| `sequence/List` | std::list: doubly linked storage, splice, stable iterators and when not to use it *(draft)* |
+| `sequence/ForwardList` | std::forward_list: a singly linked list with before_begin and insert_after *(draft)* |
 | `associative/Set` | `std::set` - sorted unique keys, ranges, `std::multiset` |
+| `associative/Map` | std::map: sorted keys, operator[] vs at vs insert vs try_emplace, lower_bound, custom comparator *(draft)* |
+| `associative/MultiMap` | duplicate keys: equal_range, count and erasing one of several equal entries *(draft)* |
 | `unordered/UnorderedMap` | `std::unordered_map` - hash table, lookup pitfalls |
+| `unordered/UnorderedSet` | hash sets: custom hash and equality, load factor, and hashing a user-defined type *(draft)* |
 | `adapter/Stack` | `std::stack` - LIFO |
 | `adapter/Queue` | `std::queue` - FIFO |
 | `adapter/PriorityQueue` | `std::priority_queue` - heap, custom priority |
+| `adapter/FlatMap` | sorted vectors behind a map interface: fast lookup and iteration, slow insertion *(draft)* |
 
 Choosing a container:
 

@@ -19,8 +19,7 @@ bool runExample(const Example& example, std::ostream& out) {
 
   out << '\n'
       << heavy_rule << '\n'
-      << "> " << example.id
-      << (example.isInteractive() ? "  [interactive]" : "") << '\n'
+      << "> " << example.id << example.labels() << '\n'
       << "  " << example.description << '\n'
       << "  source: " << example.source << '\n'
       << heavy_rule << '\n'

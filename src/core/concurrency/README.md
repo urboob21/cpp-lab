@@ -8,6 +8,11 @@
 | `ConditionVariable` | waiting for a condition, producer/consumer queue               |
 | `FuturePromise`     | `std::async`, `std::promise`, `std::packaged_task`, exceptions across threads |
 | `Timing`            | `<chrono>` clocks and durations, measuring elapsed time        |
+| `Atomic` | atomic counters and flags, compare_exchange, memory orders and std::atomic_ref *(draft)* |
+| `SharedMutex` | shared_mutex, scoped_lock, unique_lock options, recursive locks and std::call_once *(draft)* |
+| `Synchronization` | std::latch, std::barrier and std::counting_semaphore as coordination primitives *(draft)* |
+| `Coroutine` | co_await, co_yield, co_return, the promise type, and std::generator *(draft)* |
+| `ParallelAlgorithm` | execution policies: par, par_unseq, when parallelism pays off and what it costs *(draft)* |
 
 ## 1. Threads
 

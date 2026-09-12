@@ -117,7 +117,7 @@ void printNode(const MenuNode& node, bool is_root, std::ostream& out) {
   for (const Example* example : node.examples) {
     out << std::setw(4) << index++ << ". " << std::left << std::setw(kNameWidth)
         << example->name << std::right << ' ' << example->description
-        << (example->isInteractive() ? "  [interactive]" : "") << '\n';
+        << example->labels() << '\n';
   }
   out << rule << '\n'
       << " <number> open    0 " << (is_root ? "quit" : "back")

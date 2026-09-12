@@ -1,6 +1,8 @@
-> Examples: `dp/behavioral/{ChainOfResponsibility, Command, Iterator, Mediator, Memento, Observer,
-> State, Strategy, TemplateMethod, Visitor}` - run one with
+> Examples: `dp/behavioral/{ChainOfResponsibility, Command, Interpreter, Iterator, Mediator,
+> Memento, Observer, State, Strategy, TemplateMethod, Visitor}` - run one with
 > `./build/bin/cpp_lab_project --run dp/behavioral/Observer`
+>
+> `Interpreter` is still a draft: the file lists what it should teach and prints that outline.
 
 # Behavioral Design Patterns
 

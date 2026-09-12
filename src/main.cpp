@@ -59,8 +59,7 @@ void listExamples(const lab::Registry& registry, std::string_view filter) {
 
   for (const lab::Example* example : matches) {
     std::cout << std::left << std::setw(static_cast<int>(width)) << example->id
-              << "  " << example->description
-              << (example->isInteractive() ? "  [interactive]" : "") << '\n';
+              << "  " << example->description << example->labels() << '\n';
   }
   std::cout << std::right << matches.size() << " example(s)\n";
 }

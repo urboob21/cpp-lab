@@ -5,7 +5,9 @@ concurrency, sockets and embedded basics - built with CMake, GoogleTest, cppchec
 Docker and GitHub Actions for CI/CD.
 
 Every example lives in one file, explains itself in a header comment, and can be run on its own.
-New to the material? Follow the [learning path](docs/learning-path.md).
+New to the material? Follow the [learning path](docs/learning-path.md). Examples marked `[draft]`
+are scaffolds waiting to be written - [docs/cpp-standards-coverage.md](docs/cpp-standards-coverage.md)
+lists what C++11 - C++23 features the lab covers and which ones are still open.
 
 ---
 ## 1. Quick start
@@ -30,7 +32,7 @@ include/lab/   framework API: LAB_EXAMPLE, LOG..., registry, menu, runner
 src/
   lab/         framework implementation
   main.cpp     entry point: command line and menu
-  core/        C++ language and standard library examples
+  core/        C++ language and standard library examples (incl. templates)
   dp/          design patterns (behavioral, creational, structural)
   controller/  control algorithms (PID)
   socket/      POSIX TCP sockets

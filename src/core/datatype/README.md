@@ -10,6 +10,9 @@
 | `Struct`          | aggregates, designated initializers, padding and alignment      |
 | `Union`           | the active member rule, `std::bit_cast`, `std::variant`          |
 | `TypeConversions` | implicit conversions, the four casts, slicing, `auto`/`decltype` |
+| `UserDefinedLiteral` | raw string literals, standard literal suffixes and user-defined literals *(draft)* |
+| `Byte` | std::byte as raw memory, versus char and unsigned char *(draft)* |
+| `BitOperations` | the `<bit>` header: popcount, countl_zero, bit_width, rotl, endian and bit_cast *(draft)* |
 
 ## 1. Fundamental types
 

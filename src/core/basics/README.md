@@ -6,6 +6,7 @@
 | `Initialization` | default, value, direct, copy, list and aggregate initialization      |
 | `Operations`     | arithmetic, logical (short-circuit) and bitwise operators            |
 | `TypeQualifier`  | `const`, `constexpr`, `consteval`, `constinit`, `mutable`, `volatile` |
+| `Attributes` | [[nodiscard]], [[maybe_unused]], [[fallthrough]], [[deprecated]], [[likely]], [[assume]] *(draft)* |
 
 ## 1. Initialization
 

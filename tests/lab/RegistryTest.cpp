@@ -109,6 +109,20 @@ TEST_F(RegistryTest, StoresFlags) {
   registry_.add("/x/src/socket/Server.cpp", "Server", "", noop,
                 lab::kInteractive);
   EXPECT_TRUE(registry_.examples().front().isInteractive());
+  EXPECT_FALSE(registry_.examples().front().isDraft());
+  EXPECT_EQ(registry_.examples().front().labels(), "  [interactive]");
+}
+
+TEST_F(RegistryTest, LabelsDraftAndInteractiveExamples) {
+  registry_.add("/x/src/core/A.cpp", "Plain", "", noop);
+  registry_.add("/x/src/core/B.cpp", "Draft", "", noop, lab::kDraft);
+  registry_.add("/x/src/core/C.cpp", "Both", "", noop,
+                lab::kDraft | lab::kInteractive);
+
+  EXPECT_EQ(registry_.find("core/Plain")->labels(), "");
+  EXPECT_TRUE(registry_.find("core/Draft")->isDraft());
+  EXPECT_EQ(registry_.find("core/Draft")->labels(), "  [draft]");
+  EXPECT_EQ(registry_.find("core/Both")->labels(), "  [draft]  [interactive]");
 }
 
 TEST_F(RegistryTest, FindPrefersExactMatches) {

@@ -5,6 +5,7 @@
 | `FunctionPointer` | function pointer syntax, comparators, dispatch tables, member function pointers |
 | `Lambda`          | captures, `mutable`, init captures, generic lambdas, closures  |
 | `Functional`      | `std::function`, function objects, `std::bind`, `std::invoke`   |
+| `PerfectForwarding` | forwarding references, std::forward, reference collapsing and forwarding factories *(draft)* |
 
 Operator overloading is in the [operator_overloading](operator_overloading) folder.
 

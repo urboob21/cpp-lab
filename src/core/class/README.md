@@ -11,6 +11,11 @@
 | `Friend` | friend functions, friend members, friend classes |
 | `Binding` | early (static) vs late (virtual) binding, hiding vs overriding |
 | `VirtualBase` | the diamond problem and virtual inheritance |
+| `Inheritance` | public, protected and private inheritance, override, final and inheriting constructors *(draft)* |
+| `AbstractInterface` | pure virtual functions, abstract bases, the non-virtual interface idiom *(draft)* |
+| `StaticMember` | static data members and functions, inline static, constexpr static and instance counters *(draft)* |
+| `MoveSemantics` | move constructor and assignment, when moves happen, moved-from state, copy elision *(draft)* |
+| `DeducingThis` | explicit object parameters: one member function instead of const/non-const pairs *(draft)* |
 
 ---
 # Classes

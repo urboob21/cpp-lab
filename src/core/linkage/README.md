@@ -4,6 +4,8 @@
 |--------------------------|----------------------------------------------|
 | `Linkage`                | `Linkage.cpp`, `External.h/.cpp`, `Internal.cpp` |
 | `sharing/Sharing`        | `sharing/Sharing.cpp` and the three `constants` variants |
+| `OneDefinitionRule`      | `OneDefinitionRule.cpp` - the ODR, `inline` and templates *(draft)* |
+| `Modules`                | `Modules.cpp` - C++20 `export module` / `import` *(draft)* |
 
 ## 1. Translation units and the linker
 

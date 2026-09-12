@@ -9,6 +9,7 @@
 | `BinaryFileHandling` | binary records, serializing strings, random access |
 | `Directory` | `std::filesystem`: paths, creating, listing, removing |
 | `TerminalColor` | ANSI escape codes for colors and text effects |
+| `Print` | formatted output without iostreams, and how it compares with printf and cout *(draft)* |
 
 ---
 ## 1. I/O Streams

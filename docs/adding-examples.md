@@ -8,6 +8,9 @@ The lab is built so that adding an example takes one file and no build-system ch
 ./scripts/new_example.sh core/utils Span "std::span: a view over contiguous memory"
 cmake --build build
 ./build/bin/cpp_lab_project --run core/utils/Span
+
+# --draft scaffolds a topic you want to write later
+./scripts/new_example.sh --draft core/utils Mdspan "std::mdspan: multidimensional views"
 ```
 
 The script creates `src/core/utils/Span.cpp` from a template. Edit it and rebuild. The build finds
@@ -68,7 +71,7 @@ LAB_EXAMPLE(name, description [, flags]) { body }
 |---------------|-----------------------------------------------------------------------------------|
 | `name`        | Short name shown in the menu. It must be unique in its folder and contain no spaces or `/`. |
 | `description` | One line shown next to the name and searched by `--list` and the menu search.   |
-| `flags`       | Optional. `lab::kInteractive` marks examples that need a human or another process. |
+| `flags`       | Optional, combine with `|`. `lab::kInteractive` marks examples that need a human or another process; `lab::kDraft` marks a scaffold that is not written yet. |
 | folder        | Taken from the file's location: `src/core/utils/Span.cpp` becomes group `core/utils`. |
 | id            | `<folder>/<name>`, e.g. `core/utils/Span`. Use it with `--run`.                     |
 
@@ -107,6 +110,10 @@ print only the message.
   `std::istringstream` instead of `std::cin`. Mark examples that must wait for a user or a peer
   with `lab::kInteractive`.
 - Format with the repository's `.clang-format` (Google-based style).
+- **Drafts:** an example that only describes what it should teach keeps `lab::kDraft`. The menu
+  shows it as `[draft]`, and running it prints the outline from its header comment. Remove the flag
+  in the same commit that writes the code. The open ones are listed in
+  [cpp-standards-coverage.md](cpp-standards-coverage.md).
 
 ## 4. Testing your example
 

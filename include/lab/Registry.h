@@ -13,6 +13,10 @@ enum ExampleFlags : unsigned {
   /// network peer, or never returns. `--run-all` and the ctest smoke tests
   /// skip these examples.
   kInteractive = 1U << 0U,
+  /// A scaffold: the topic is planned and the file lists what it should show,
+  /// but the code is not written yet. Draft examples still run (they print
+  /// their outline), and the menu marks them as [draft].
+  kDraft = 1U << 1U,
 };
 
 using ExampleFunction = void (*)();
@@ -31,6 +35,11 @@ struct Example {
   unsigned flags{kNone};
 
   bool isInteractive() const { return (flags & kInteractive) != 0U; }
+  bool isDraft() const { return (flags & kDraft) != 0U; }
+
+  /// Tags to print after the description: "  [draft]", "  [interactive]", both
+  /// or nothing.
+  std::string labels() const;
 };
 
 /// Collection of all examples.
