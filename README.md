@@ -5,6 +5,7 @@ concurrency, sockets and embedded basics - built with CMake, GoogleTest, cppchec
 Docker and GitHub Actions for CI/CD.
 
 Every example lives in one file, explains itself in a header comment, and can be run on its own.
+New to the material? Follow the [learning path](docs/learning-path.md).
 
 ---
 ## 1. Quick start
